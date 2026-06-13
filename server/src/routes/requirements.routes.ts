@@ -49,6 +49,13 @@ export function createRequirementRoutes() {
     return c.json({ statuses });
   });
 
+  // GET /distinct-assignees — Return distinct assignee values (optional groupName filter)
+  app.get("/distinct-assignees", async (c) => {
+    const groupName = c.req.query("groupName") || undefined;
+    const assignees = await reqService.getDistinctAssignees(ctx(c), groupName);
+    return c.json({ assignees });
+  });
+
   // GET /category-counts — Return filtered category counts for sidebar
   app.get("/category-counts", async (c) => {
     const query: RequirementQuery & { releaseId?: number } = {

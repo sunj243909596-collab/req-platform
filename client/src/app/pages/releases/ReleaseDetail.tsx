@@ -1,12 +1,13 @@
 import { useParams, Link, useNavigate } from 'react-router';
 import {
   ArrowLeft, Calendar, User, CheckCircle2, Clock, Send,
-  Loader2, AlertTriangle, ShieldCheck, Edit, Plus, X, Search
+  Loader2, AlertTriangle, ShieldCheck, Edit, Plus
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Breadcrumb } from '../../components/Breadcrumb';
-import { getRelease, submitReleaseForReview, addRequirementsToRelease, removeRequirementFromRelease, getUnassignedRequirements, type ReleaseInfo } from '../../../api/releases';
+import { getRelease, submitReleaseForReview, removeRequirementFromRelease, type ReleaseInfo } from '../../../api/releases';
+import { ManageRequirementsDialog } from './ManageRequirementsDialog';
 import { listRequirements, type RequirementListItem } from '../../../api/requirements';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -50,54 +51,18 @@ export function ReleaseDetail() {
   const [submitting, setSubmitting] = useState(false);
 
   // Requirement management
-  const [showManageModal, setShowManageModal] = useState(false);
-  const [availableReqs, setAvailableReqs] = useState<{ id: number; reqNo: string; title: string; priority: string; status: string }[]>([]);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [reqSearch, setReqSearch] = useState('');
-  const [loadingAvailable, setLoadingAvailable] = useState(false);
+  const [showManageDialog, setShowManageDialog] = useState(false);
 
-  const openManageModal = async () => {
-    setShowManageModal(true);
-    setLoadingAvailable(true);
-    try {
-      const reqs = await getUnassignedRequirements(parseInt(id!), release?.groupName);
-      setAvailableReqs(reqs);
-    } catch {
-      toast.error('加载可选需求失败');
-    } finally {
-      setLoadingAvailable(false);
-    }
-  };
-
-  const handleAddRequirements = async () => {
-    if (selectedIds.length === 0) { toast.error('请选择需求'); return; }
-    try {
-      await addRequirementsToRelease(parseInt(id!), selectedIds);
-      toast.success(`已添加 ${selectedIds.length} 个需求`);
-      setSelectedIds([]);
-      setShowManageModal(false);
-      fetchData(); // refresh
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '添加失败');
-    }
-  };
-
-  const handleRemoveRequirement = async (reqId: number, reqNo: string) => {
+  async function handleRemoveRequirement(reqId: number, reqNo: string) {
     if (!confirm(`确定要移除需求 ${reqNo} 吗？`)) return;
     try {
       await removeRequirementFromRelease(parseInt(id!), reqId);
       toast.success('已移除');
-      fetchData(); // refresh
+      fetchData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '移除失败');
     }
-  };
-
-  const filteredAvailable = reqSearch
-    ? availableReqs.filter(r =>
-        r.title.toLowerCase().includes(reqSearch.toLowerCase()) ||
-        r.reqNo.toLowerCase().includes(reqSearch.toLowerCase()))
-    : availableReqs;
+  }
 
   const fetchData = async () => {
     if (!id) return;
@@ -269,7 +234,7 @@ export function ReleaseDetail() {
               <h4 className="text-[var(--ink)]">包含的需求</h4>
               {release.status !== 'RELEASED' && release.status !== 'CANCELLED' && (
                 <button
-                  onClick={openManageModal}
+                  onClick={() => setShowManageDialog(true)}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--primary)] border border-[var(--primary)] rounded-[var(--radius-md)] hover:bg-[var(--primary)] hover:text-white transition-colors"
                 >
                   <Plus size={14} /> 管理需求
@@ -282,7 +247,7 @@ export function ReleaseDetail() {
               <p className="mb-3">暂无关联需求</p>
               {release.status !== 'RELEASED' && release.status !== 'CANCELLED' && (
                 <button
-                  onClick={openManageModal}
+                  onClick={() => setShowManageDialog(true)}
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm text-[var(--primary)] border border-[var(--primary)] rounded-[var(--radius-md)] hover:bg-[var(--primary)] hover:text-white transition-colors"
                 >
                   <Plus size={14} /> 添加需求
@@ -383,92 +348,17 @@ export function ReleaseDetail() {
         )}
       </div>
 
-      {/* Manage Requirements Modal */}
-      {showManageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-[var(--canvas)] rounded-[var(--radius-lg)] p-6 w-full max-w-xl mx-4 max-h-[80vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[var(--ink)]">管理需求</h3>
-              <button onClick={() => { setShowManageModal(false); setSelectedIds([]); setReqSearch(''); }} className="p-1 hover:bg-[var(--canvas-parchment)] rounded">
-                <X size={20} className="text-[var(--ink-muted-80)]" />
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="relative mb-3">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-muted-80)]" />
-              <input
-                type="text"
-                value={reqSearch}
-                onChange={(e) => setReqSearch(e.target.value)}
-                placeholder="搜索需求编号或标题..."
-                className="w-full pl-9 pr-4 py-2.5 bg-[var(--canvas-parchment)] border border-[var(--hairline)] rounded-[var(--radius-md)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
-              />
-            </div>
-
-            {/* Count */}
-            <div className="flex items-center justify-between mb-3 text-sm">
-              <span className="text-[var(--ink-muted-80)]">已选 {selectedIds.length} 个</span>
-              <span className="text-[var(--ink-muted-80)]">共 {filteredAvailable.length} 个可选</span>
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto border border-[var(--hairline)] rounded-[var(--radius-md)] mb-4">
-              {loadingAvailable ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 size={24} className="animate-spin text-[var(--primary)]" />
-                </div>
-              ) : filteredAvailable.length === 0 ? (
-                <p className="text-center py-8 text-sm text-[var(--ink-muted-80)]">
-                  {reqSearch ? '无匹配结果' : '没有可关联的需求'}
-                </p>
-              ) : (
-                filteredAvailable.map(req => {
-                  const isSelected = selectedIds.includes(req.id);
-                  return (
-                    <button
-                      key={req.id}
-                      type="button"
-                      onClick={() => setSelectedIds(prev => prev.includes(req.id) ? prev.filter(i => i !== req.id) : [...prev, req.id])}
-                      className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-[var(--hairline)] last:border-0 transition-colors ${
-                        isSelected ? 'bg-[var(--primary)]/5' : 'hover:bg-[var(--canvas-parchment)]'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
-                        isSelected ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--hairline)]'
-                      }`}>
-                        {isSelected && <CheckCircle2 size={14} className="text-white" />}
-                      </div>
-                      <span className="font-mono text-sm text-[var(--ink-muted-80)] w-28">{req.reqNo}</span>
-                      <span className="text-sm text-[var(--ink)] truncate flex-1">{req.title}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-[1px] text-white ${
-                        req.priority === 'P0' ? 'bg-[#ff3b30]' : req.priority === 'P1' ? 'bg-[#ff9500]' : 'bg-[#0066cc]'
-                      }`}>{req.priority}</span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => { setShowManageModal(false); setSelectedIds([]); setReqSearch(''); }}
-                className="px-4 py-2 border border-[var(--hairline)] rounded-[var(--radius-md)] hover:bg-[var(--canvas-parchment)] text-sm"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleAddRequirements}
-                disabled={selectedIds.length === 0}
-                className="px-6 py-2 bg-[var(--primary)] text-white rounded-[var(--radius-md)] hover:bg-[var(--primary-focus)] disabled:opacity-50 text-sm"
-              >
-                添加 ({selectedIds.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ManageRequirementsDialog
+        releaseId={parseInt(id!)}
+        groupName={release?.groupName}
+        versionNo={release.versionNo}
+        open={showManageDialog}
+        onClose={() => setShowManageDialog(false)}
+        onAdded={(count) => {
+          toast.success(`已添加 ${count} 个需求`);
+          fetchData();
+        }}
+      />
     </div>
   );
 }

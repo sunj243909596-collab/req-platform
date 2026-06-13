@@ -1118,6 +1118,22 @@ export async function getDistinctStatuses(ctx: AuthContext): Promise<string[]> {
   return groups.map(g => g.status);
 }
 
+/** 返回数据库中实际存在的去重负责人列表（用于负责人筛选下拉） */
+export async function getDistinctAssignees(ctx: AuthContext, groupName?: string): Promise<string[]> {
+  const where: Prisma.RequirementWhereInput = {
+    isDeleted: false,
+    ...groupFilter(ctx),
+    assignee: { not: null },
+  };
+  if (groupName && ctx.role === "ADMIN") where.groupName = groupName;
+  const groups = await prisma.requirement.groupBy({
+    by: ["assignee"],
+    where,
+    orderBy: { assignee: "asc" },
+  });
+  return groups.map((g) => g.assignee).filter((a): a is string => !!a);
+}
+
 // ==================== Custom Views ====================
 
 export async function listViews(userId: number) {

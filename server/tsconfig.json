@@ -7,7 +7,6 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist",
-    "rootDir": ".",
     "paths": {
       "shared-types": ["../packages/shared-types/src/index.ts"],
       "agent": ["../agent/src/index.ts"]

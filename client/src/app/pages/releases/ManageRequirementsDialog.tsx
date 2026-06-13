@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Loader2, RotateCcw, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -128,6 +128,48 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
     setFilters({ releaseId, groupName, search: '', page: 1, pageSize: PAGE_SIZE });
   }
 
+  const pageIds = useMemo(() => data.map((r) => r.id), [data]);
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function togglePageAll() {
+    const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  async function handleAdd() {
+    if (selectedIds.size === 0) { toast.error('请选择需求'); return; }
+    setSubmitting(true);
+    try {
+      await addRequirementsToRelease(releaseId, Array.from(selectedIds));
+      onAdded(selectedIds.size);
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '添加失败');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const selectedIdPreview = useMemo(() => {
+    const sample = data.filter((r) => selectedIds.has(r.id)).slice(0, 5).map((r) => r.reqNo);
+    if (sample.length === 0) return '';
+    const more = selectedIds.size > sample.length ? ` ... 等 ${selectedIds.size} 个` : '';
+    return sample.join(', ') + more;
+  }, [data, selectedIds]);
+
   if (!open) return null;
 
   return (
@@ -170,18 +212,94 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
             <FilterSelect label="模块" value={filters.module} options={moduleOptions} onChange={(v) => handleFilterChange('module', v)} />
           </div>
         </div>
-        {/* 占位:筛选行 + 表格 + 分页 + 底部,后续任务填充 */}
-        <div className="flex-1 flex items-center justify-center text-sm text-[var(--ink-muted-80)]">
-          筛选行 + 表格 + 分页 + 底部(下一任务)
+        {/* Table area */}
+        <div className="flex-1 overflow-y-auto px-6 py-3">
+          {error ? (
+            <div className="flex flex-col items-center justify-center py-12 text-sm">
+              <p className="text-[var(--destructive)] mb-3">{error}</p>
+              <button onClick={() => setFilters((f) => ({ ...f }))} className="px-4 py-1.5 border border-[var(--hairline)] rounded-[var(--radius-md)] hover:bg-[var(--canvas-parchment)] text-sm">
+                点击重试
+              </button>
+            </div>
+          ) : loading && data.length === 0 ? (
+            <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-10 bg-[var(--canvas-parchment)] rounded-[var(--radius-md)] animate-pulse" />)}</div>
+          ) : data.length === 0 ? (
+            <p className="text-center py-12 text-sm text-[var(--ink-muted-80)]">
+              {hasActiveFilter(filters) ? '无匹配结果' : '没有可关联的需求'}
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--canvas-parchment)] sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 w-10 text-left">
+                    <input
+                      type="checkbox"
+                      checked={pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))}
+                      ref={(el) => { if (el) el.indeterminate = !pageIds.every((id) => selectedIds.has(id)) && pageIds.some((id) => selectedIds.has(id)); }}
+                      onChange={togglePageAll}
+                    />
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold">编码</th>
+                  <th className="px-3 py-2 text-left font-semibold">标题</th>
+                  <th className="px-3 py-2 text-left font-semibold w-20">优先级</th>
+                  <th className="px-3 py-2 text-left font-semibold w-24">状态</th>
+                  <th className="px-3 py-2 text-left font-semibold w-24">负责人</th>
+                  <th className="px-3 py-2 text-left font-semibold w-20">类型</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((req) => {
+                  const isSelected = selectedIds.has(req.id);
+                  return (
+                    <tr
+                      key={req.id}
+                      onClick={() => toggleSelect(req.id)}
+                      className={`border-b border-[var(--hairline)] cursor-pointer transition-colors ${isSelected ? 'bg-[var(--primary)]/5' : 'hover:bg-[var(--canvas-parchment)]'}`}
+                    >
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(req.id)} />
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-[var(--ink-muted-80)]">{req.reqNo}</td>
+                      <td className="px-3 py-2 text-[var(--ink)] truncate max-w-0" title={req.title}>{req.title}</td>
+                      <td className="px-3 py-2">
+                        <span className="inline-block px-2 py-0.5 rounded-[1px] text-xs font-semibold text-white" style={{ backgroundColor: PRIORITY_COLORS[req.priority] || '#6c757d' }}>
+                          {req.priority}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="inline-block px-2 py-0.5 rounded-[1px] text-xs font-semibold text-white" style={{ backgroundColor: req.statusColor || '#6c757d' }}>
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-[var(--ink)]">{req.assignee || '-'}</td>
+                      <td className="px-3 py-2 text-[var(--ink-muted-80)]">{reqTypeLabel(reqTypes, req.reqType)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
-        {/* Footer (空) */}
-        <div className="px-6 py-4 border-t border-[var(--hairline)] flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 border border-[var(--hairline)] rounded-[var(--radius-md)] hover:bg-[var(--canvas-parchment)] text-sm">
-            取消
-          </button>
-          <button disabled className="px-6 py-2 bg-[var(--primary)] text-white rounded-[var(--radius-md)] text-sm opacity-50">
-            添加 ({selectedIds.size})
-          </button>
+        {/* Pagination + Footer */}
+        <div className="px-6 py-3 border-t border-[var(--hairline)] flex items-center justify-between">
+          <div className="flex items-center gap-3 text-sm">
+            <Pagination current={filters.page || 1} total={total} pageSize={PAGE_SIZE} onChange={(p) => handleFilterChange('page', p)} />
+            <span className="text-[var(--ink-muted-80)]">共 {total} 个</span>
+            {selectedIds.size > 0 && (
+              <span className="text-[var(--primary)]" title={selectedIdPreview}>已选 {selectedIds.size} 个 (跨页)</span>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-4 py-2 border border-[var(--hairline)] rounded-[var(--radius-md)] hover:bg-[var(--canvas-parchment)] text-sm">取消</button>
+            <button
+              onClick={handleAdd}
+              disabled={selectedIds.size === 0 || submitting}
+              className="px-6 py-2 bg-[var(--primary)] text-white rounded-[var(--radius-md)] hover:bg-[var(--primary-focus)] disabled:opacity-50 text-sm"
+            >
+              {submitting ? <Loader2 size={14} className="inline animate-spin mr-1" /> : null}
+              添加 ({selectedIds.size})
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -206,5 +324,38 @@ function FilterSelect<T extends string>({
       <option value="">{label}（全部）</option>
       {normalized.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
+  );
+}
+
+function hasActiveFilter(f: UnassignedRequirementsQuery): boolean {
+  return !!(f.search || f.priority || f.status || f.assignee || f.reqType || f.module);
+}
+
+function reqTypeLabel(types: RequirementTypeItem[], code: string): string {
+  return types.find((t) => t.code === code)?.name || code;
+}
+
+function Pagination({ current, total, pageSize, onChange }: { current: number; total: number; pageSize: number; onChange: (p: number) => void }) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1) return null;
+  const pages: (number | '...')[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - current) <= 1) pages.push(i);
+    else if (pages[pages.length - 1] !== '...') pages.push('...');
+  }
+  return (
+    <div className="flex items-center gap-1 text-sm">
+      {pages.map((p, i) => p === '...' ? (
+        <span key={`e${i}`} className="px-2 text-[var(--ink-muted-80)]">…</span>
+      ) : (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          className={`px-2.5 py-1 rounded ${p === current ? 'bg-[var(--primary)] text-white' : 'hover:bg-[var(--canvas-parchment)] text-[var(--ink)]'}`}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -38,14 +38,30 @@ export function createReleaseRoutes() {
 
   // Get unassigned requirements — MUST be before /:id to avoid route conflict
   app.get("/unassigned-requirements", async (c) => {
-    const releaseId = c.req.query("releaseId") ? parseInt(c.req.query("releaseId")!) : undefined;
+    const releaseId = c.req.query("releaseId") ? parseInt(c.req.query("releaseId")!, 10) : undefined;
+    const page = c.req.query("page") ? parseInt(c.req.query("page")!, 10) : undefined;
+    const pageSize = c.req.query("pageSize") ? parseInt(c.req.query("pageSize")!, 10) : undefined;
     const groupName = c.req.query("groupName") || undefined;
-    try {
-      const reqs = await releaseService.getUnassignedRequirements(releaseId, groupName);
-      return c.json(reqs);
-    } catch (err) {
-      return c.json({ error: (err as Error).message }, 500);
-    }
+    const search = c.req.query("search") || undefined;
+    const priority = (c.req.query("priority") as "P0" | "P1" | "P2" | "P3" | "") || undefined;
+    const status = c.req.query("status") || undefined;
+    const assignee = c.req.query("assignee") || undefined;
+    const reqType = (c.req.query("reqType") as "REQUIREMENT" | "BUG" | "IMPROVEMENT" | "TASK" | "") || undefined;
+    const moduleParam = c.req.query("module") || undefined;
+
+    const result = await releaseService.getUnassignedRequirements({
+      releaseId,
+      groupName,
+      search,
+      priority,
+      status,
+      assignee,
+      reqType,
+      module: moduleParam,
+      page,
+      pageSize,
+    });
+    return c.json(result);
   });
 
   app.get("/:id", async (c) => {

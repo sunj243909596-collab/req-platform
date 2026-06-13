@@ -95,15 +95,41 @@ docker compose up -d db
 # User: req_admin / Password: req_secret / DB: req_platform_db
 ```
 
-### 4.3 Install Dependencies
+If port `5432` is already used by a local PostgreSQL instance, either stop the
+local service before using Docker Compose, or point `server/.env` to the existing
+database and make sure the configured user has privileges on `req_platform_db`.
+
+### 4.3 Configure Server Environment
 
 ```bash
+cp server/.env.example server/.env
+```
+
+For local development, the common defaults are:
+
+```bash
+DATABASE_URL="postgresql://req_admin:req_secret@localhost:5432/req_platform_db?schema=public"
+JWT_SECRET="dev-jwt-secret-change-in-production"
+CORS_ORIGIN="http://localhost:6173"
+PORT=8001
+```
+
+### 4.4 Install Dependencies
+
+```bash
+cd server
+pnpm install
+
+cd ../client
 pnpm install
 ```
 
 > ⚠️ **WSL users**: if `node_modules` lives on a Windows drive, delete it first and re-run `pnpm install` inside WSL to avoid native-module platform mismatch.
 
-### 4.4 Initialize the Database Schema
+`server/pnpm-workspace.yaml` allows the Prisma and esbuild build scripts required
+for `pnpm install` and `prisma generate`.
+
+### 4.5 Initialize the Database Schema
 
 You can use either **Prisma migrate** (recommended for ongoing development) or **raw SQL** (faster cold-start):
 
@@ -128,17 +154,40 @@ psql "$DATABASE_URL" -f server/prisma/schema.sql
 - 59 indexes (unique / composite / partial)
 - 47 `COMMENT ON` annotations
 
-### 4.5 Start Dev Servers (2~3 terminals)
+### 4.6 Start Dev Servers
+
+Recommended one-command startup:
+
+```bash
+./scripts/dev.sh
+```
+
+Default development addresses:
+
+- Frontend: http://localhost:6173
+- Backend: http://localhost:8001
+- Health check: http://localhost:8001/api/health
+
+Stop the dev servers:
+
+```bash
+./scripts/stop-dev.sh
+```
+
+Manual startup is also supported:
 
 ```bash
 # Terminal 1: backend
-pnpm --filter server dev     # tsx watch mode, watches src/index.ts
+cd server
+pnpm dev                     # tsx watch mode, watches src/index.ts
 
 # Terminal 2: frontend
-pnpm --filter client dev     # Vite, default http://localhost:5173
+cd client
+pnpm dev                     # Vite, default http://localhost:6173
 
 # Terminal 3 (optional): knowledge base sync
-pnpm --filter agent kb:sync  # Sync local docs into RAG
+cd agent
+pnpm kb:sync                 # Sync local docs into RAG
 ```
 
 ---
@@ -147,12 +196,14 @@ pnpm --filter agent kb:sync  # Sync local docs into RAG
 
 | Command | Purpose |
 |---|---|
-| `pnpm --filter server dev` | Run backend (tsx watch) |
-| `pnpm --filter client dev` | Run frontend (Vite) |
-| `pnpm --filter client build` | Frontend production build |
-| `pnpm --filter server build` | Backend TS compile (`tsc`) |
-| `pnpm --filter server prisma:studio` | Open Prisma Studio (data browser) |
-| `pnpm --filter agent kb:sync` | Sync knowledge base into RAG |
+| `./scripts/dev.sh` | Run backend and frontend together |
+| `./scripts/stop-dev.sh` | Stop local dev servers and free ports |
+| `cd server && pnpm dev` | Run backend (tsx watch) |
+| `cd client && pnpm dev` | Run frontend (Vite) |
+| `cd client && pnpm build` | Frontend production build |
+| `cd server && pnpm build` | Backend TS compile (`tsc`) |
+| `cd server && pnpm prisma:studio` | Open Prisma Studio (data browser) |
+| `cd agent && pnpm kb:sync` | Sync knowledge base into RAG |
 | `docker compose up -d db` | Start PostgreSQL + pgvector |
 
 ---

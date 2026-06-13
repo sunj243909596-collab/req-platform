@@ -116,9 +116,15 @@ export async function* chatStream(
   }
   const tableBlock = buildTableGroundingBlock(groundedTables);
 
+  // 空召回时显式注入"0 片段"信号，避免 LLM 在缺少证据时编造事实（修复 RAG 幻觉）
+  const emptyRetrievalNotice =
+    kbChunks.length === 0
+      ? `\n\n## 检索结果\n本次知识库检索 **0 条片段**。\n根据反幻觉硬性约束第 9 条：禁止给出任何事实性回答（数字、表名、字段、流程、状态码），只能告知用户"本次知识库未检索到相关片段，无法回答此问题，建议改用更具体的关键词或直接查询数据库"。`
+      : "";
+
   const fullPrompt = kbContext
     ? `${systemPrompt}\n\n${tableBlock}\n\n相关知识库内容：\n${kbContext}`
-    : `${systemPrompt}\n\n${tableBlock}`;
+    : `${systemPrompt}\n\n${tableBlock}${emptyRetrievalNotice}`;
 
   yield { type: "rag", content: JSON.stringify(ragMeta) };
 

@@ -481,13 +481,26 @@ export async function syncKnowledgeBase(
       rag.chunkOverlapMd ?? 200
     );
 
-    // Embed — graceful fallback if API fails (text-only mode)
+    // Embed — per-batch independent try/catch (fix BUG-004)
+    // Old behavior: single embedTexts call failed → all chunks NULL (silent fallback)
+    // New behavior: each batch is independent; failed batch logs error but doesn't kill the rest
+    const BATCH_SIZE = 10;
     const texts = chunks.map(c => c.content);
-    let embeddings: number[][] = [];
-    try {
-      embeddings = await getEmbedder().embedTexts(texts);
-    } catch (embedErr) {
-      console.warn(`[syncKnowledgeBase] Embedding failed for ${file.relativePath}: ${(embedErr as Error).message}. Falling back to text-only mode.`);
+    const embeddings: (number[] | null)[] = new Array(chunks.length).fill(null);
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const batchTexts = texts.slice(i, i + BATCH_SIZE);
+      try {
+        const batchResult = await getEmbedder().embedTexts(batchTexts);
+        for (let j = 0; j < batchResult.length; j++) {
+          embeddings[i + j] = batchResult[j];
+        }
+        console.log(`[syncKnowledgeBase] batch ${i}-${i + batchTexts.length}/${chunks.length} ok (file=${file.relativePath})`);
+      } catch (embedErr) {
+        console.error(
+          `[syncKnowledgeBase] batch ${i}-${i + batchTexts.length}/${chunks.length} FAILED for ${file.relativePath}: ${(embedErr as Error).message}. Storing NULL for this batch.`
+        );
+        // 该批保持 null，其他批不受影响
+      }
     }
 
     // Store
@@ -743,7 +756,7 @@ export interface AgentDataStore {
   getKnowledgeDocumentHashes(kbId: number): Promise<Map<string, string>>;
   deleteKnowledgeDocument(kbId: number, relativePath: string): Promise<void>;
   upsertKnowledgeDocument(kbId: number, data: { fileName: string; filePath: string; relativePath: string; fileSize: number; fileHash: string; mimeType: string; docType: string; chunkCount: number }): Promise<number>;
-  upsertKnowledgeChunks(docId: number, chunks: { chunkIndex: number; content: string; contentTokens: number; embedding: number[]; metadata: Record<string, unknown> }[]): Promise<void>;
+  upsertKnowledgeChunks(docId: number, chunks: { chunkIndex: number; content: string; contentTokens: number; embedding: number[] | null; metadata: Record<string, unknown> }[]): Promise<void>;
   updateKnowledgeBaseSyncTime(kbId: number): Promise<void>;
 
   // Requirements

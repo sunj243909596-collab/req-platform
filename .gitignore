@@ -6,3 +6,4 @@ agent-config.json
 .env.local
 .env.*.local
 .dev/
+.claude/settings.local.json

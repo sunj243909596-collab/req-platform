@@ -1,4 +1,5 @@
 import { http } from './http';
+import type { PaginatedResponse, RequirementListItem, Priority, ReqType } from './requirements';
 
 export interface ReleaseInfo {
   id: number;
@@ -92,10 +93,34 @@ export async function removeRequirementFromRelease(
   await http.delete(`/releases/${releaseId}/requirements/${reqId}`);
 }
 
-// Get unassigned requirements (for selection)
+// Get unassigned requirements (for selection) — supports filters + pagination
+export interface UnassignedRequirementsQuery {
+  releaseId: number;
+  groupName?: string;
+  search?: string;
+  priority?: Priority;
+  status?: string;
+  assignee?: string;
+  reqType?: ReqType;
+  module?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export async function getUnassignedRequirements(
-  releaseId: number,
-  groupName?: string
-): Promise<{ id: number; reqNo: string; title: string; priority: string; status: string }[]> {
-  return http.get('/releases/unassigned-requirements', { releaseId, groupName });
+  query: UnassignedRequirementsQuery
+): Promise<PaginatedResponse<RequirementListItem>> {
+  const params = Object.fromEntries(
+    Object.entries(query).filter(([, v]) => v !== undefined && v !== '')
+  ) as Record<string, string | number>;
+  return http.get('/releases/unassigned-requirements', params);
+}
+
+// Get distinct assignee values for the assignee filter dropdown
+export async function getDistinctAssignees(groupName?: string): Promise<string[]> {
+  const data = await http.get<{ assignees: string[] }>(
+    '/requirements/distinct-assignees',
+    groupName ? { groupName } : {}
+  );
+  return data.assignees;
 }

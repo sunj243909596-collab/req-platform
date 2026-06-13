@@ -1,9 +1,33 @@
+# ===== 本机个人配置（严禁入库） =====
+.claude/settings.local.json
+claude --resume *
+
+# ===== Node / 包管理 =====
 node_modules/
 dist/
 *.tsbuildinfo
-agent-config.json
+.npm/
+.pnpm-store/
+
+# ===== 环境变量与密钥 =====
 .env
 .env.local
 .env.*.local
+agent-config.json
+
+# ===== 临时与日志 =====
 .dev/
-.claude/settings.local.json
+.uploads/
+tmp/
+*.log
+*.tmp
+*.bak
+*.bak.*
+
+# ===== IDE / 编辑器残留 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

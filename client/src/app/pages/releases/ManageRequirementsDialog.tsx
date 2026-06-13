@@ -56,8 +56,13 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
   const [reqTypes, setReqTypes] = useState<RequirementTypeItem[]>([]);
 
   // 防抖搜索
-  const searchTimerRef = useRef<number | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchInput, setSearchInput] = useState('');
+
+  // 卸载时清理未触发的搜索 timer
+  useEffect(() => () => {
+    if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+  }, []);
 
   // 打开/关闭重置
   useEffect(() => {
@@ -135,6 +140,36 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
             <X size={20} className="text-[var(--ink-muted-80)]" />
           </button>
         </div>
+        {/* Filter row */}
+        <div className="px-6 py-3 border-b border-[var(--hairline)] space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-muted-80)]" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="搜索编码或标题..."
+                className="w-full pl-9 pr-4 py-2 bg-[var(--canvas-parchment)] border border-[var(--hairline)] rounded-[var(--radius-md)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
+              />
+              {searchInput && (
+                <button onClick={() => handleSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--ink-muted-80)] hover:text-[var(--ink)]">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button onClick={handleReset} className="flex items-center gap-1 px-3 py-2 text-sm border border-[var(--hairline)] rounded-[var(--radius-md)] hover:bg-[var(--canvas-parchment)]">
+              <RotateCcw size={14} /> 重置
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterSelect label="状态" value={filters.status} options={statusOptions} onChange={(v) => handleFilterChange('status', v)} />
+            <FilterSelect label="优先级" value={filters.priority} options={PRIORITY_OPTIONS} onChange={(v) => handleFilterChange('priority', v as Priority | undefined)} />
+            <FilterSelect label="负责人" value={filters.assignee} options={assigneeOptions} onChange={(v) => handleFilterChange('assignee', v)} />
+            <FilterSelect label="类型" value={filters.reqType} options={reqTypes.map((t) => ({ value: t.code, label: t.name }))} onChange={(v) => handleFilterChange('reqType', v as ReqType | undefined)} />
+            <FilterSelect label="模块" value={filters.module} options={moduleOptions} onChange={(v) => handleFilterChange('module', v)} />
+          </div>
+        </div>
         {/* 占位:筛选行 + 表格 + 分页 + 底部,后续任务填充 */}
         <div className="flex-1 flex items-center justify-center text-sm text-[var(--ink-muted-80)]">
           筛选行 + 表格 + 分页 + 底部(下一任务)
@@ -150,5 +185,26 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
         </div>
       </div>
     </div>
+  );
+}
+
+function FilterSelect<T extends string>({
+  label, value, options, onChange,
+}: {
+  label: string;
+  value: T | undefined;
+  options: T[] | { value: T; label: string }[];
+  onChange: (v: T | undefined) => void;
+}) {
+  const normalized = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o);
+  return (
+    <select
+      value={value ?? ''}
+      onChange={(e) => onChange((e.target.value || undefined) as T | undefined)}
+      className="px-3 py-1.5 text-sm bg-[var(--canvas-parchment)] border border-[var(--hairline)] rounded-[var(--radius-md)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+    >
+      <option value="">{label}（全部）</option>
+      {normalized.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
   );
 }

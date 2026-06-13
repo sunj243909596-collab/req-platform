@@ -1,203 +1,218 @@
 # Req Platform
 
-> 面向研发团队的一体化需求管理平台：需求全生命周期跟踪 + 发版流转 + 知识库语义检索 + AI Agent 智能辅助。
+> An integrated requirement management platform for R&D teams: full lifecycle tracking + release workflow + knowledge base semantic search + AI Agent assistance.
 
-[![分支](https://img.shields.io/badge/branch-dev-blue)](https://github.com/sunj243909596-collab/req-platform/tree/dev)
-[![包管理](https://img.shields.io/badge/pnpm-workspace-orange)](https://pnpm.io)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7%20strict-blue)](https://www.typescriptlang.org)
-[![数据库](https://img.shields.io/badge/PostgreSQL-15%20%2B%20pgvector-336791)](https://github.com/pgvector/pgvector)
+[![branch](https://img.shields.io/badge/branch-dev-blue)](https://github.com/sunj243909596-collab/req-platform/tree/dev)
+[![pkg](https://img.shields.io/badge/pnpm-workspace-orange)](https://pnpm.io)
+[![ts](https://img.shields.io/badge/TypeScript-5.7%20strict-blue)](https://www.typescriptlang.org)
+[![db](https://img.shields.io/badge/PostgreSQL-15%20%2B%20pgvector-336791)](https://github.com/pgvector/pgvector)
 
 ---
 
-## 一、项目简介
+## 1. Overview
 
-Req Platform 是一套**通用的需求管理 + 研发协作**平台，覆盖从需求收集、优先级排序、发版流转到上线归档的完整链路，并通过 RAG 知识库 + AI Agent 提升团队效率。
+**Req Platform** is a **generic requirement management + R&D collaboration** platform that covers the complete pipeline from requirement collection, prioritization, release planning, to archival — enhanced with a RAG knowledge base and AI Agent to boost team efficiency.
 
-| 模块 | 说明 |
+| Module | Description |
 |---|---|
-| **需求管理** | 需求的全生命周期跟踪（创建 / 评审 / 开发 / 测试 / 发版 / 归档） |
-| **优先级 & 标签** | 多级优先级（P0~P3）、自定义标签、模块归属 |
-| **发版管理** | Release 计划、需求关联、SIT 流转、上线发布 |
-| **知识库 + RAG** | 业务文档 / 设计资料 / 历史需求的语义检索（pgvector 向量索引） |
-| **AI Agent** | 集成 Anthropic Claude 与 OpenAI，封装 LLM 对话、知识检索、规划、需求分析能力 |
-| **认证授权** | JWT + RBAC（自定义角色） |
-| **用户管理** | 账户、角色、组、状态管理 |
+| **Requirement Management** | Full lifecycle tracking (create / review / develop / test / release / archive) |
+| **Priority & Tags** | Multi-level priority (P0~P3), custom tags, module ownership |
+| **Release Management** | Release planning, requirement linking, SIT workflow, deployment |
+| **Knowledge Base + RAG** | Semantic search over business docs / designs / historical requirements (pgvector) |
+| **AI Agent** | Anthropic Claude + OpenAI integration, LLM chat, knowledge retrieval, planning, requirement analysis |
+| **Auth & RBAC** | JWT + role-based access control (custom roles) |
+| **User Management** | Accounts, roles, groups, status management |
 
-适配场景：互联网产品研发、企业内部系统、SaaS 平台、行业软件等需要规范需求流转的团队。
+Suited for: internet product R&D, enterprise internal systems, SaaS platforms, vertical industry software — any team that needs disciplined requirement workflow.
 
 ---
 
-## 二、技术栈
+## 2. Tech Stack
 
-| 层 | 选型 |
+| Layer | Choice |
 |---|---|
-| **Monorepo** | pnpm workspace + TypeScript 5.7（`strict: true`） |
-| **前端 (client/)** | React 19 + Vite + MUI v7 + Radix UI + Emotion + 状态管理 |
-| **后端 (server/)** | Hono 4 + Prisma 6 + PostgreSQL 15（pgvector 扩展）+ JWT + bcryptjs |
-| **Agent (agent/)** | Anthropic SDK + OpenAI SDK + 自研 RAG 检索链路 |
-| **共享类型 (packages/shared-types/)** | 跨包 TypeScript 类型定义 |
-| **基础设施** | Docker Compose（pgvector）、tsx（运行时）、Vite（构建） |
+| **Monorepo** | pnpm workspace + TypeScript 5.7 (`strict: true`) |
+| **Frontend (client/)** | React 19 + Vite + MUI v7 + Radix UI + Emotion + state management |
+| **Backend (server/)** | Hono 4 + Prisma 6 + PostgreSQL 15 (pgvector) + JWT + bcryptjs |
+| **Agent (agent/)** | Anthropic SDK + OpenAI SDK + custom RAG retrieval chain |
+| **Shared Types (packages/shared-types/)** | Cross-package TypeScript type definitions |
+| **Infrastructure** | Docker Compose (pgvector), tsx (runtime), Vite (build) |
 
 ---
 
-## 三、仓库结构
+## 3. Repository Structure
 
 ```
 req-platform/
-├── client/                 # 前端（React 19 + MUI + Radix）
+├── client/                 # Frontend (React 19 + MUI + Radix)
 │   └── src/
-│       ├── app/            # 路由 / 页面
-│       ├── api/            # API 调用层
-│       ├── stores/         # 状态管理
-│       ├── components/     # 业务组件
-│       └── styles/         # 全局样式
-├── server/                 # 后端（Hono + Prisma）
+│       ├── app/            # Routes / pages
+│       ├── api/            # API call layer
+│       ├── stores/         # State management
+│       ├── components/     # Business components
+│       └── styles/         # Global styles
+├── server/                 # Backend (Hono + Prisma)
 │   ├── prisma/
-│   │   ├── schema.prisma   # 数据模型（User / Role / Requirement / Release / KnowledgeChunk...）
+│   │   ├── schema.prisma   # Data models (User / Role / Requirement / Release / KnowledgeChunk...)
+│   │   ├── schema.sql      # PostgreSQL 15 DDL (synced from schema.prisma, pgvector)
 │   │   └── seed.ts
 │   ├── src/
-│   │   ├── routes/         # HTTP 路由
-│   │   ├── services/       # 业务服务
+│   │   ├── routes/         # HTTP routes
+│   │   ├── services/       # Business services
 │   │   ├── middleware/     # JWT / RBAC
-│   │   └── lib/            # 基础设施
-│   └── uploads/            # 知识库原始文件上传目录（不入 git）
+│   │   └── lib/            # Infrastructure
+│   └── uploads/            # Knowledge base raw uploads (gitignored)
 ├── agent/                  # AI Agent
 │   └── src/
-│       ├── llm/            # Claude / OpenAI 客户端 + Prompt 模板
-│       ├── rag/            # 向量检索 / 知识库查询
-│       ├── knowledge/      # 知识库同步
-│       ├── planning/       # 任务规划
-│       ├── conversation/   # 对话管理
-│       └── analysis/       # 需求分析
+│       ├── llm/            # Claude / OpenAI clients + prompt templates
+│       ├── rag/            # Vector retrieval / KB query
+│       ├── knowledge/      # KB sync
+│       ├── planning/       # Task planning
+│       ├── conversation/   # Dialog management
+│       └── analysis/       # Requirement analysis
 ├── packages/
-│   └── shared-types/       # 跨包 TS 类型
-├── docker-compose.yml      # pgvector 容器
-├── tsconfig.base.json      # 共享 TS 配置
+│   └── shared-types/       # Cross-package TS types
+├── docker-compose.yml      # pgvector container
+├── tsconfig.base.json      # Shared TS config
 └── pnpm-lock.yaml
 ```
 
 ---
 
-## 四、快速开始
+## 4. Quick Start
 
-### 4.1 环境要求
+### 4.1 Requirements
 
 - Node.js ≥ 20
 - pnpm ≥ 9
 - Docker & Docker Compose
 
-### 4.2 启动数据库
+### 4.2 Start the Database
 
 ```bash
 docker compose up -d db
-# 启动 pgvector/pgvector:0.8.0-pg15，端口 5432
-# 账号: req_admin / req_secret / req_platform_db
+# Boots pgvector/pgvector:0.8.0-pg15 on port 5432
+# User: req_admin / Password: req_secret / DB: req_platform_db
 ```
 
-### 4.3 安装依赖
+### 4.3 Install Dependencies
 
 ```bash
 pnpm install
 ```
 
-> ⚠️ **WSL 用户注意**：若 `node_modules` 在 Windows 磁盘上，请先删除再 `pnpm install` 重新装，避免原生模块平台不一致。
+> ⚠️ **WSL users**: if `node_modules` lives on a Windows drive, delete it first and re-run `pnpm install` inside WSL to avoid native-module platform mismatch.
 
-### 4.4 数据库迁移与种子
+### 4.4 Initialize the Database Schema
+
+You can use either **Prisma migrate** (recommended for ongoing development) or **raw SQL** (faster cold-start):
+
+**Option A — Prisma migrate** (recommended for development):
 
 ```bash
 cd server
-pnpm prisma:migrate          # 应用 schema
-pnpm prisma:seed             # 初始化基础数据
+pnpm prisma:migrate          # Apply schema
+pnpm prisma:seed             # Seed initial data
 ```
 
-### 4.5 启动开发服务（需开 2~3 个终端）
+**Option B — Raw SQL** (faster cold-start, no Prisma client needed):
 
 ```bash
-# 终端 1：后端
-pnpm --filter server dev     # tsx watch 模式，监听 src/index.ts
+# Apply the DDL directly (PG 15 + pgvector required)
+psql "$DATABASE_URL" -f server/prisma/schema.sql
+```
 
-# 终端 2：前端
-pnpm --filter client dev     # Vite 默认 http://localhost:5173
+`server/prisma/schema.sql` is auto-synced from `schema.prisma` and contains:
+- 3 extensions: `vector`, `pg_trgm`, `uuid-ossp`
+- 43 tables, ordered by 5 FK dependency layers
+- 59 indexes (unique / composite / partial)
+- 47 `COMMENT ON` annotations
 
-# 终端 3：（可选）知识库同步
-pnpm --filter agent kb:sync  # 把本地文档同步进 RAG
+### 4.5 Start Dev Servers (2~3 terminals)
+
+```bash
+# Terminal 1: backend
+pnpm --filter server dev     # tsx watch mode, watches src/index.ts
+
+# Terminal 2: frontend
+pnpm --filter client dev     # Vite, default http://localhost:5173
+
+# Terminal 3 (optional): knowledge base sync
+pnpm --filter agent kb:sync  # Sync local docs into RAG
 ```
 
 ---
 
-## 五、常用命令速查
+## 5. Common Commands
 
-| 命令 | 作用 |
+| Command | Purpose |
 |---|---|
-| `pnpm --filter server dev` | 启后端（tsx watch） |
-| `pnpm --filter client dev` | 启前端（Vite） |
-| `pnpm --filter client build` | 前端生产构建 |
-| `pnpm --filter server build` | 后端 TS 编译（`tsc`） |
-| `pnpm --filter server prisma:studio` | 打开 Prisma Studio（数据浏览） |
-| `pnpm --filter agent kb:sync` | 同步知识库到 RAG |
-| `docker compose up -d db` | 启动 PostgreSQL + pgvector |
+| `pnpm --filter server dev` | Run backend (tsx watch) |
+| `pnpm --filter client dev` | Run frontend (Vite) |
+| `pnpm --filter client build` | Frontend production build |
+| `pnpm --filter server build` | Backend TS compile (`tsc`) |
+| `pnpm --filter server prisma:studio` | Open Prisma Studio (data browser) |
+| `pnpm --filter agent kb:sync` | Sync knowledge base into RAG |
+| `docker compose up -d db` | Start PostgreSQL + pgvector |
 
 ---
 
-## 六、配置 & 数据
+## 6. Configuration & Data
 
-### 6.1 环境变量
+### 6.1 Environment Variables
 
-| 变量 | 说明 | 示例 |
+| Variable | Description | Example |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL 连接串 | `postgresql://req_admin:req_secret@localhost:5432/req_platform_db` |
-| `JWT_SECRET` | JWT 签名密钥 | （自行生成强随机字符串） |
-| `ANTHROPIC_API_KEY` | Claude API 密钥（Agent 用） | `sk-ant-...` |
-| `OPENAI_API_KEY` | OpenAI API 密钥（Agent 用，可选） | `sk-...` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://req_admin:req_secret@localhost:5432/req_platform_db` |
+| `JWT_SECRET` | JWT signing secret | (a strong random string) |
+| `ANTHROPIC_API_KEY` | Claude API key (for Agent) | `sk-ant-...` |
+| `OPENAI_API_KEY` | OpenAI API key (for Agent, optional) | `sk-...` |
 
-通过 `agent-config.json` 或 `.env` 文件管理，**均不入 git**（`.gitignore` 已屏蔽）。
+Configure via `agent-config.json` or `.env` files — **both are gitignored**.
 
-### 6.2 数据模型概览
+### 6.2 Data Model Overview
 
-| 模型 | 用途 |
+| Model | Purpose |
 |---|---|
-| `User` | 平台用户 |
-| `Role` | 角色定义（RBAC） |
-| `Requirement` | 需求单（标题 / 描述 / 优先级 / 状态 / 分配人 / 模块 / 标签） |
-| `Release` | 发版计划（关联需求） |
-| `KnowledgeChunk` | RAG 知识库 chunk（pgvector 嵌入） |
-| `Notification` | 站内通知 |
+| `User` | Platform user |
+| `Role` | Role definition (RBAC) |
+| `Requirement` | Requirement ticket (title / description / priority / status / assignee / module / tags) |
+| `Release` | Release plan (linked requirements) |
+| `KnowledgeChunk` | RAG chunk (pgvector embedding) |
+| `Notification` | In-app notification |
+
+See `server/prisma/schema.prisma` for the full schema and `server/prisma/schema.sql` for the PostgreSQL DDL.
 
 ---
 
-## 七、关键设计原则
+## 7. Key Design Principles
 
-1. **类型安全** — TypeScript `strict: true`，跨包类型走 `packages/shared-types`
-2. **审计字段** — 主要实体记录 `createdAt` / `createdBy` / `updatedAt` / `updatedBy` / `version`
-3. **权限分层** — 路由级 JWT 鉴权 + 服务级 RBAC 角色检查
-4. **RAG 优先** — AI 回答前先检索知识库，降低幻觉
-5. **本地优先 / 云端可选** — pgvector 自托管，Anthropic/OpenAI 走云端 API
+1. **Type safety** — TypeScript `strict: true`; cross-package types in `packages/shared-types`
+2. **Audit fields** — main entities record `createdAt` / `createdBy` / `updatedAt` / `updatedBy` / `version`
+3. **Layered auth** — route-level JWT + service-level RBAC role checks
+4. **RAG-first** — retrieve from the knowledge base before any AI answer to reduce hallucination
+5. **Local-first / cloud-optional** — pgvector self-hosted; Anthropic/OpenAI are cloud APIs
 
 ---
 
-## 八、贡献指南
+## 8. Contributing
 
-- 提交规范：`<type>(<scope>): <description>`（如 `feat(client): add filter row to dialog`）
-- 分支策略：`dev` 为集成分支，功能开发请基于 `dev` 拉特性分支
-- 写代码前：先看 `client/src/app/`、`server/src/routes/`、`agent/src/` 的现有实现风格
-- 新增需求模型字段时：先改 `server/prisma/schema.prisma` → `prisma migrate dev` → 同步 `shared-types`
+- Commit convention: `<type>(<scope>): <description>` (e.g. `feat(client): add filter row to dialog`)
+- Branch strategy: `dev` is the integration branch — create feature branches off `dev`
+- Before writing code: skim `client/src/app/`, `server/src/routes/`, `agent/src/` for existing style
+- Adding requirement-model fields: update `server/prisma/schema.prisma` → `prisma migrate dev` → sync `shared-types`
 
-### 8.1 项目脚本
+### 8.1 Project Scripts
 
-| 路径 | 命令 | 作用 |
+| Path | Command | Purpose |
 |---|---|---|
-| 根 | `pnpm install` | 安装所有子包依赖 |
-| `server/` | `pnpm prisma:migrate` | 应用数据库迁移 |
-| `server/` | `pnpm prisma:seed` | 初始化种子数据 |
-| `server/` | `pnpm prisma:studio` | 打开数据库可视化工具 |
+| root | `pnpm install` | Install all sub-package deps |
+| `server/` | `pnpm prisma:migrate` | Apply DB migrations |
+| `server/` | `pnpm prisma:seed` | Seed initial data |
+| `server/` | `pnpm prisma:studio` | Open DB visual tool |
 
 ---
 
-## 九、许可证
+## 9. License
 
-本项目采用 **MIT 许可证** — 详见 [LICENSE](./LICENSE) 文件（如未提供，请补充）。
-
----
-
-**维护者**：Jason SUN
-**最近更新**：2026-06-13
+This project is licensed under the **MIT License** — see the [LICENSE](./LICENSE) file.

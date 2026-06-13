@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+agent-config.json
+.env
+.env.local
+.env.*.local
+.dev/

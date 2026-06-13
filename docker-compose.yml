@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg15
+    environment:
+      POSTGRES_USER: req_admin
+      POSTGRES_PASSWORD: req_secret
+      POSTGRES_DB: req_platform_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    command: ["postgres", "-c", "shared_preload_libraries=vector"]
+volumes:
+  pgdata:

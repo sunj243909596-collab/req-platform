@@ -1,0 +1,5 @@
+=== RAG 知识库性能基线 ===
+时间：Sun Jun  7 22:27:49 CST 2026
+DB：localhost:5432/req_platform_db
+
+❌ 无法连接数据库，请确认 docker-compose up 已启动，或调整脚本顶部的 DB 变量

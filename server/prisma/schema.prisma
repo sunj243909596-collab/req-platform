@@ -1,0 +1,661 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================= Models =================
+
+model User {
+  id            Int            @id @default(autoincrement())
+  username      String         @unique
+  passwordHash  String
+  displayName   String
+  role          String         @default("MEMBER")       // denormalized role name for fast access
+  roleId        Int?           @map("role_id")          // FK to Role (null for legacy)
+  roleRef       Role?          @relation(fields: [roleId], references: [id])
+  groupName     String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+}
+
+/// 角色定义 — 可自定义的角色，ADMIN 为系统内置不可删除
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique                 // 角色名，如 ADMIN, 测试主管
+  displayName String   @map("display_name")    // 显示名
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system") // 系统内置角色不可删除
+  sortOrder   Int      @default(0) @map("sort_order")
+  users       User[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+model Group {
+  id              Int              @id @default(autoincrement())
+  groupName       String           @unique
+  description     String?
+  createdAt       DateTime         @default(now())
+  workflowDefs WorkflowDefinition[]
+  customFields    CustomField[]
+}
+
+model RequirementType {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  displayName String   @map("display_name")
+  color       String   @default("#6b7280")
+  prefix      String   @default("")
+  sortOrder   Int      @default(0) @map("sort_order")
+  enabled     Boolean  @default(true)
+  currentSeq  Int      @default(0) @map("current_seq") // 已废弃，保留列兼容；计数见 RequirementSeqCounter
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt     @map("updated_at")
+
+  requirements          Requirement[]
+  requirementCategories RequirementCategory[]
+  seqCounters           RequirementSeqCounter[]
+  numberRules           RequirementNumberRule[]
+
+  @@index([enabled, sortOrder])
+}
+
+/// 按「选中分类 + 需求类型」独立计数的序列号桶
+/// 对应编码前缀：{rule.prefix}-{根分类code}-{子分类code}-{类型首字母}
+model RequirementSeqCounter {
+  id         Int      @id @default(autoincrement())
+  categoryId Int      @map("category_id")
+  category   RequirementCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  reqTypeId  Int      @map("req_type_id")
+  reqType    RequirementType @relation(fields: [reqTypeId], references: [id], onDelete: Cascade)
+  currentSeq Int      @default(0) @map("current_seq")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([categoryId, reqTypeId])
+  @@index([reqTypeId])
+}
+
+model RequirementNumberRule {
+  id        Int             @id @default(autoincrement())
+  enabled   Boolean         @default(false)
+  prefix    String          @default("REQ")
+  reqTypeId Int             @map("req_type_id")
+  reqType   RequirementType @relation(fields: [reqTypeId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt     @map("updated_at")
+
+  @@unique([reqTypeId])
+}
+
+model RequirementCategory {
+  id        Int                   @id @default(autoincrement())
+  name      String
+  code      String?
+  reqTypeId Int?                  @map("req_type_id")
+  reqType   RequirementType?      @relation(fields: [reqTypeId], references: [id], onDelete: SetNull)
+  parentId  Int?                  @map("parent_id")
+  parent    RequirementCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  RequirementCategory[] @relation("CategoryTree")
+  sortOrder Int                   @default(0) @map("sort_order")
+  enabled   Boolean               @default(true)
+  createdAt DateTime              @default(now()) @map("created_at")
+  updatedAt DateTime              @updatedAt @map("updated_at")
+  requirements Requirement[]
+  seqCounters  RequirementSeqCounter[]
+
+  @@index([parentId])
+  @@index([reqTypeId])
+}
+
+model Requirement {
+  id              Int       @id @default(autoincrement())
+  reqNo           String    @unique
+  reqTypeId       Int?      @map("req_type_id")
+  reqType         RequirementType? @relation(fields: [reqTypeId], references: [id], onDelete: SetNull)
+  categoryId      Int?      @map("category_id")
+  category        RequirementCategory? @relation(fields: [categoryId], references: [id])
+  title           String
+  module          String?
+  priority        String    @default("P2")              // P0, P1, P2, P3
+  status          String    @default("待评审")
+  assignee        String?
+  reporter        String?
+  targetDate      DateTime? @map("target_date")
+  terminals       Json?
+  tags            Json?
+  gspImpact       String?   @map("gsp_impact") @default("待评估")
+  relatedTables   String?   @map("related_tables")
+  groupName       String    @map("group_name")
+  background      String?
+  description     String?
+  designSolution  String?   @map("design_solution")
+  embedding      Unsupported("vector(1024)")?
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  deletedAt       DateTime? @map("deleted_at")
+  deletedBy       String?   @map("deleted_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  releaseId       Int?      @map("release_id")
+  release         Release?  @relation(fields: [releaseId], references: [id])
+  subTasks        SubTask[]
+  relationsFrom   ReqRelation[] @relation("FromReq")
+  relationsTo     ReqRelation[] @relation("ToReq")
+  customValues    ReqCustomValue[]
+  attachments     Attachment[]
+  documents       Document[]
+  comments        Comment[]
+  testCases       TestCase[]
+  regressionSuites RegressionSuite[]
+  activityLogs    ActivityLog[]
+  agentInsights   ReqAgentInsight[]
+  analysisCaches  AnalysisCache[]
+
+  @@index([reqTypeId])
+}
+
+model SubTask {
+  id          Int         @id @default(autoincrement())
+  reqId       Int         @map("req_id")
+  req         Requirement @relation(fields: [reqId], references: [id])
+  taskNo      String      @map("task_no")
+  title       String
+  description String?
+  assignee    String?
+  status      String      @default("待开发")
+  sortOrder   Int         @default(0) @map("sort_order")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+}
+
+model ReqRelation {
+  id         Int         @id @default(autoincrement())
+  fromReqId  Int         @map("from_req_id")
+  toReqId    Int         @map("to_req_id")
+  relType    String      @map("rel_type")              // PARENT_CHILD, BLOCKS, DEPENDS_ON, DUPLICATES, RELATED
+  createdAt  DateTime    @default(now()) @map("created_at")
+  fromReq    Requirement @relation("FromReq", fields: [fromReqId], references: [id])
+  toReq      Requirement @relation("ToReq", fields: [toReqId], references: [id])
+}
+
+model CustomField {
+  id          Int             @id @default(autoincrement())
+  groupId     Int?            @map("group_id")           // nullable → 全局共用字段
+  group       Group?          @relation(fields: [groupId], references: [id])
+  fieldName   String          @map("field_name")
+  fieldKey    String          @map("field_key")
+  fieldType   String          @map("field_type")         // TEXT, TEXTAREA, NUMBER, DATE, SELECT, MULTI_SELECT, CHECKBOX
+  options     Json?
+  required    Boolean         @default(false)
+  sortOrder   Int             @default(0) @map("sort_order")
+  placeholder String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  values      ReqCustomValue[]
+}
+
+model ReqCustomValue {
+  id      Int          @id @default(autoincrement())
+  reqId   Int          @map("req_id")
+  req     Requirement  @relation(fields: [reqId], references: [id])
+  fieldId Int          @map("field_id")
+  field   CustomField  @relation(fields: [fieldId], references: [id])
+  value   String?
+}
+
+model Release {
+  id            Int            @id @default(autoincrement())
+  versionNo     String         @map("version_no")
+  releaseName   String         @map("release_name")
+  status        String         @default("PLANNED")      // PLANNED, IN_DEV, IN_REVIEW, RELEASED, CLOSED, CANCELLED
+  groupName     String         @map("group_name")
+  owner         String?
+  plannedDate   DateTime?      @map("planned_date")
+  actualDate    DateTime?      @map("actual_date")
+  description   String?
+  isDeleted     Boolean        @default(false) @map("is_deleted")
+  deletedAt     DateTime?      @map("deleted_at")
+  deletedBy     String?        @map("deleted_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  requirements  Requirement[]
+  reviews       ReleaseReview[]
+}
+
+model ReleaseReview {
+  id         Int      @id @default(autoincrement())
+  releaseId  Int      @map("release_id")
+  release    Release  @relation(fields: [releaseId], references: [id])
+  reviewer   String
+  action     String                                  // SUBMITTED, APPROVED, REJECTED
+  comment    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+}
+
+model Attachment {
+  id         Int         @id @default(autoincrement())
+  reqId      Int         @map("req_id")
+  req        Requirement @relation(fields: [reqId], references: [id])
+  fileName   String      @map("file_name")
+  filePath   String      @map("file_path")
+  fileSize   Int?        @map("file_size")
+  mimeType   String?     @map("mime_type")
+  uploadedBy String      @map("uploaded_by")
+  createdAt  DateTime    @default(now()) @map("created_at")
+}
+
+model Document {
+  id        Int         @id @default(autoincrement())
+  reqId     Int         @map("req_id")
+  req       Requirement @relation(fields: [reqId], references: [id])
+  docName   String      @map("doc_name")
+  docPath   String?     @map("doc_path")
+  docType   String?     @map("doc_type")             // BRD, FSD, PRD, OTHER
+  createdAt DateTime    @default(now()) @map("created_at")
+}
+
+model Comment {
+  id        Int         @id @default(autoincrement())
+  reqId     Int         @map("req_id")
+  req       Requirement @relation(fields: [reqId], references: [id])
+  author    String
+  content   String
+  isMention Boolean     @default(false) @map("is_mention")
+  createdAt DateTime    @default(now()) @map("created_at")
+}
+
+model TestCase {
+  id           Int         @id @default(autoincrement())
+  reqId        Int         @map("req_id")
+  req          Requirement @relation(fields: [reqId], references: [id])
+  caseNo       String      @map("case_no")
+  title        String
+  precondition String?     @map("precondition")
+  steps        Json        // [{ "step": 1, "action": "...", "expected": "..." }]
+  priority     String      @default("P2")  // P0/P1/P2/P3
+  source       String      @default("manual")  // "AI" | "manual"
+  createdBy    String      @map("created_by")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  runs                 TestRun[]
+  suiteItems           RegressionSuiteItem[]
+  regressionRunItems   RegressionRunItem[]
+
+  @@index([reqId])
+}
+
+model TestRun {
+  id          Int      @id @default(autoincrement())
+  testCaseId  Int      @map("test_case_id")
+  testCase    TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  status      String   @default("pending")  // pending | passed | failed | blocked
+  result      String?  // 测试结果文本备注
+  screenshots Json?    // ["uploads/test-runs/{runId}/screen1.png", ...]
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([testCaseId])
+}
+
+model RegressionSuite {
+  id          Int                   @id @default(autoincrement())
+  reqId       Int                   @map("req_id")
+  req         Requirement           @relation(fields: [reqId], references: [id])
+  name        String
+  description String?
+  createdBy   String                @map("created_by")
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+  items       RegressionSuiteItem[]
+  runs        RegressionRun[]
+
+  @@index([reqId])
+}
+
+model RegressionSuiteItem {
+  id         Int             @id @default(autoincrement())
+  suiteId    Int             @map("suite_id")
+  testCaseId Int             @map("test_case_id")
+  sortOrder  Int             @default(0) @map("sort_order")
+  suite      RegressionSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  testCase   TestCase        @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([suiteId, testCaseId])
+}
+
+model RegressionRun {
+  id           Int                 @id @default(autoincrement())
+  suiteId      Int                 @map("suite_id")
+  totalCount   Int                 @default(0) @map("total_count")
+  passCount    Int                 @default(0) @map("pass_count")
+  failCount    Int                 @default(0) @map("fail_count")
+  blockedCount Int                 @default(0) @map("blocked_count")
+  status       String              @default("running") @map("status") // running | completed
+  createdBy    String              @map("created_by")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  suite        RegressionSuite     @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  items        RegressionRunItem[]
+
+  @@index([suiteId])
+}
+
+model RegressionRunItem {
+  id          Int            @id @default(autoincrement())
+  runId       Int            @map("run_id")
+  testCaseId  Int            @map("test_case_id")
+  status      String         @default("pending") @map("status") // pending | passed | failed | blocked
+  result      String?        @map("result")
+  screenshots Json?          @map("screenshots")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  run         RegressionRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  testCase    TestCase       @relation(fields: [testCaseId], references: [id])
+
+  @@index([runId])
+}
+
+model ActivityLog {
+  id        Int         @id @default(autoincrement())
+  reqId     Int         @map("req_id")
+  req       Requirement @relation(fields: [reqId], references: [id])
+  actor     String
+  action    String                                  // CREATED, UPDATED, STATUS_CHANGED, ASSIGNED, COMMENTED, DELETED, RESTORED
+  fieldName String?     @map("field_name")
+  oldValue  String?     @map("old_value")
+  newValue  String?     @map("new_value")
+  detail    Json?
+  createdAt DateTime    @default(now()) @map("created_at")
+}
+
+model Notification {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @map("user_id")
+  user      User       @relation(fields: [userId], references: [id])
+  type      String                                  // ASSIGNED, STATUS_CHANGED, COMMENTED, MENTIONED, REVIEW_SUBMITTED, REVIEW_RESULT
+  reqId     Int?       @map("req_id")
+  content   String
+  isRead    Boolean    @default(false) @map("is_read")
+  createdAt DateTime   @default(now()) @map("created_at")
+}
+
+/// 工作流定义 — 支持多工作流，每个工作流独立的状态和流转配置
+model WorkflowDefinition {
+  id          Int                  @id @default(autoincrement())
+  name        String
+  description String?
+  enabled     Boolean              @default(true)
+  groupId     Int                  @map("group_id")
+  group       Group                @relation(fields: [groupId], references: [id])
+  statuses    WorkflowStatus[]
+  transitions WorkflowTransition[]
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  @@index([groupId, enabled])
+}
+
+/// 工作流状态定义 — 支持自定义排序、起始/结束状态标记
+model WorkflowStatus {
+  id         Int                @id @default(autoincrement())
+  workflowId Int                @map("workflow_id")
+  workflow   WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  name       String
+  sortOrder  Int                @default(0) @map("sort_order")
+  isStart    Boolean            @default(false) @map("is_start")
+  isEnd      Boolean            @default(false) @map("is_end")
+  color      String?            /// 状态颜色
+
+  @@index([workflowId])
+}
+
+/// 工作流状态流转规则 — 定义两个状态间是否允许流转
+model WorkflowTransition {
+  id           Int                @id @default(autoincrement())
+  workflowId   Int                @map("workflow_id")
+  workflow     WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  fromStatusId Int                @map("from_status_id")
+  toStatusId   Int                @map("to_status_id")
+  enabled      Boolean            @default(true)
+
+  @@unique([workflowId, fromStatusId, toStatusId])
+  @@index([workflowId])
+}
+
+// ===================== AI Agent Models (Phase 8) =====================
+
+model KnowledgeBase {
+  id            Int                 @id @default(autoincrement())
+  name          String              @unique
+  displayName   String              @map("display_name")
+  description      String?
+  routingExamples  Json?               @map("routing_examples")
+  basePath         String              @map("base_path")
+  sourceType    String              @map("source_type") @default("directory") // directory | upload
+  docType       String?             @map("doc_type")
+  enabled       Boolean             @default(true)
+  lastSyncedAt  DateTime?           @map("last_synced_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  documents     KnowledgeDocument[]
+}
+
+model KnowledgeDocument {
+  id              Int              @id @default(autoincrement())
+  knowledgeBaseId Int              @map("knowledge_base_id")
+  knowledgeBase   KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id])
+  fileName        String           @map("file_name")
+  filePath        String           @map("file_path")
+  relativePath    String           @map("relative_path")
+  fileSize        Int              @map("file_size")
+  fileHash        String           @map("file_hash")
+  mimeType        String?          @map("mime_type")
+  docType         String?          @map("doc_type")
+  chunkCount      Int              @default(0) @map("chunk_count")
+  indexedAt       DateTime         @map("indexed_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  chunks          KnowledgeChunk[]
+}
+
+model KnowledgeChunk {
+  id            Int               @id @default(autoincrement())
+  documentId    Int               @map("document_id")
+  document      KnowledgeDocument @relation(fields: [documentId], references: [id])
+  chunkIndex    Int               @map("chunk_index")
+  content       String
+  contentTokens Int?              @map("content_tokens")
+  embedding     Unsupported("vector(1024)")?
+  metadata      Json?
+  createdAt     DateTime          @default(now()) @map("created_at")
+  @@index([documentId])
+}
+
+model Conversation {
+  id            Int                   @id @default(autoincrement())
+  title         String?
+  userId        Int                   @map("user_id")
+  contextType   String                @default("chat") @map("context_type")
+  contextId     Int?                  @map("context_id")
+  contextModel  String?               @map("context_model")
+  messageCount  Int                   @default(0) @map("message_count")
+  totalTokens   Int                   @default(0) @map("total_tokens")
+  isArchived    Boolean               @default(false) @map("is_archived")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  messages      ConversationMessage[]
+}
+
+model ConversationMessage {
+  id              Int          @id @default(autoincrement())
+  conversationId  Int          @map("conversation_id")
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  role            String
+  content         String
+  tokens          Int?
+  metadata        Json?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  @@index([conversationId, createdAt])
+}
+
+model AnalysisCache {
+  id            Int          @id @default(autoincrement())
+  reqId         Int?         @map("req_id")
+  req           Requirement? @relation(fields: [reqId], references: [id])
+  analysisType  String       @map("analysis_type")
+  inputHash     String       @map("input_hash")
+  result        Json
+  model         String       @default("claude-sonnet-4-20250514")
+  tokensUsed    Int?         @map("tokens_used")
+  latencyMs     Int?         @map("latency_ms")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  expiresAt     DateTime?    @map("expires_at")
+  @@index([reqId, analysisType])
+  @@index([inputHash])
+}
+
+model AgentTask {
+  id            Int       @id @default(autoincrement())
+  taskType      String    @map("task_type")
+  status        String    @default("pending")
+  params        Json?
+  result        Json?
+  errorMessage  String?   @map("error_message")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  createdBy     Int       @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  @@index([status])
+  @@index([taskType, status])
+}
+
+model RequirementView {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String
+  filters   Json     // { reqType?, priority?, status?, assignee?, module?, search? }
+  sortBy    String?  @default("updatedAt") @map("sort_by")
+  sortOrder String?  @default("desc") @map("sort_order")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model ReqAgentInsight {
+  id              Int         @id @default(autoincrement())
+  reqId           Int         @map("req_id")
+  req             Requirement @relation(fields: [reqId], references: [id])
+  insightType     String      @map("insight_type")
+  content         String?
+  structuredData  Json?       @map("structured_data")
+  model           String      @map("model")
+  tokensUsed      Int?        @map("tokens_used")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  @@index([reqId, insightType])
+}
+
+// ================= Team Learnings (from gstack /learn) =================
+
+model TeamLearning {
+  id         Int      @id @default(autoincrement())
+  title      String
+  content    String?
+  category   String   // 最佳实践 / 踩坑记录 / 团队偏好 / 架构决策
+  tags       Json?
+  author     String
+  confidence Int      @default(7) // 1-10
+  source     String   @default("manual") @map("source") // manual / observed
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([author])
+}
+
+// ================= AI Skills =================
+
+/** AI Skill 定义 — 用户可自定义的系统提示词 */
+model AiSkill {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique           // 技能唯一标识符（如 wm-architect）
+  displayName   String   @map("display_name")  // 显示名称（如 WMOS 架构师）
+  description   String?                      // 技能描述
+  systemPrompt  String   @map("system_prompt") // 系统提示词模板（支持 {{变量}} 和 {{context}} 占位符）
+  category      String   @default("general")  // 分类：design / analysis / chat / rag / custom
+  enabled       Boolean  @default(true)
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  assignments   SkillAssignment[]
+}
+
+/** AI 调用映射 — 哪个任务调用哪个 Skill */
+model SkillAssignment {
+  id        Int        @id @default(autoincrement())
+  taskKey   String     @unique @map("task_key")   // 任务标识：generateDesign / analyzeRequirement / chat / ragSearch
+  skillId   Int        @map("skill_id")
+  skill     AiSkill    @relation(fields: [skillId], references: [id])
+  enabled   Boolean    @default(true)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@index([skillId])
+}
+
+// ================= Operation Manuals =================
+
+/// 操作手册 — 统一承载知识文章、文档上传、外部链接
+model OperationManual {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String?                       /// Markdown 内容（article 类型）
+  type        String   @default("article")  /// article | document | link
+  category    String   @default("SOP")      /// SOP | FAQ | 操作指南 | 系统说明 | 其他
+  tags        Json?                         /// ["tag1", "tag2"]
+  externalUrl String?  @map("external_url") /// link 类型专用
+  filePath    String?  @map("file_path")    /// document 类型专用（相对路径）
+  fileName    String?  @map("file_name")    /// 原始文件名
+  fileSize    Int?     @map("file_size")    /// 文件大小（字节）
+  mimeType    String?  @map("mime_type")    /// 文件 MIME 类型
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdBy   String   @map("created_by")
+  updatedBy   String?  @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@index([category])
+  @@index([sortOrder])
+}
+
+/// 操作手册分类 — 用户可自定义
+model ManualCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  sortOrder Int      @default(0) @map("sort_order")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([sortOrder])
+}
+
+// ================= System Config =================
+
+/// 系统配置 — key-value 存储平台级参数（如模块枚举值）
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  configKey   String   @unique @map("config_key")  /// 配置键
+  configValue Json     @map("config_value")         /// 配置值（JSON）
+  description String?                               /// 配置说明
+  updatedBy   String?  @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}

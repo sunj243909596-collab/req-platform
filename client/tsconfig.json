@@ -1,0 +1,23 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "shared-types": ["../packages/shared-types/src/index.ts"]
+    },
+    "noEmit": true,
+    "isolatedModules": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src", "../packages/shared-types/src"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".dev",
+    "src/app/components/ui",
+    "src/main.tsx"
+  ]
+}

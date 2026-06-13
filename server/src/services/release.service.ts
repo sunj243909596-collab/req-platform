@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { Prisma } from "@prisma/client";
 import type { AuthContext } from "../utils/access";
 
 
@@ -188,23 +189,105 @@ export async function removeRequirement(releaseId: number, reqId: number) {
   } catch (e) { console.warn("[req-rag] removeRequirement dual-write failed:", (e as Error).message); }
 }
 
-export async function getUnassignedRequirements(releaseId?: number, groupName?: string) {
-  const where: Record<string, unknown> = { isDeleted: false };
-  if (groupName) where.groupName = groupName;
+export interface UnassignedRequirementsQuery {
+  releaseId?: number;
+  groupName?: string;
+  search?: string;
+  priority?: "P0" | "P1" | "P2" | "P3";
+  status?: string;
+  assignee?: string;
+  reqType?: "REQUIREMENT" | "BUG" | "IMPROVEMENT" | "TASK";
+  module?: string;
+  page?: number;
+  pageSize?: number;
+}
 
-  if (releaseId) {
+export async function getUnassignedRequirements(query: UnassignedRequirementsQuery = {}) {
+  const page = Math.max(1, query.page || 1);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize || 20));
+  const skip = (page - 1) * pageSize;
+
+  const where: Prisma.RequirementWhereInput = { isDeleted: false };
+  if (query.groupName) where.groupName = query.groupName;
+
+  // 排除已纳入本发版的需求
+  if (query.releaseId) {
     where.OR = [
       { releaseId: null },
-      { releaseId: { not: releaseId } },
+      { releaseId: { not: query.releaseId } },
     ];
   } else {
     where.releaseId = null;
   }
 
-  return prisma.requirement.findMany({
-    where,
-    select: { id: true, reqNo: true, title: true, priority: true, status: true, assignee: true, releaseId: true },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  // 复用 listRequirements 的 where 风格
+  if (query.search) {
+    const searchFilter = [
+      { title: { contains: query.search, mode: "insensitive" as const } },
+      { reqNo: { contains: query.search, mode: "insensitive" as const } },
+    ];
+    where.AND = [{ OR: searchFilter }];
+  }
+  if (query.priority) where.priority = query.priority;
+  if (query.status) where.status = query.status;
+  if (query.assignee) where.assignee = { contains: query.assignee, mode: "insensitive" };
+  if (query.module) where.module = query.module;
+  if (query.reqType) {
+    const t = await prisma.requirementType.findUnique({ where: { code: query.reqType } });
+    where.reqTypeId = t?.id ?? -1;
+  }
+
+  const [total, rows] = await Promise.all([
+    prisma.requirement.count({ where }),
+    prisma.requirement.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        reqNo: true,
+        title: true,
+        priority: true,
+        status: true,
+        assignee: true,
+        module: true,
+        reqTypeId: true,
+        groupName: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+
+  // 批量查 status 颜色
+  const { resolveStatusColors } = await import("../utils/serialize");
+  const colorMap = await resolveStatusColors(
+    rows.map((r) => ({ groupName: r.groupName, statusName: r.status }))
+  );
+
+  // 查 reqType code（批量，缓存）
+  const reqTypeIds = [...new Set(rows.map((r) => r.reqTypeId).filter((id): id is number => !!id))];
+  const reqTypes = reqTypeIds.length > 0
+    ? await prisma.requirementType.findMany({ where: { id: { in: reqTypeIds } } })
+    : [];
+  const reqTypeMap = new Map(reqTypes.map((t) => [t.id, t.code as "REQUIREMENT" | "BUG" | "IMPROVEMENT" | "TASK"]));
+
+  return {
+    data: rows.map((r) => ({
+      id: r.id,
+      reqNo: r.reqNo,
+      title: r.title,
+      priority: r.priority as "P0" | "P1" | "P2" | "P3",
+      status: r.status,
+      statusColor: colorMap.get(`${r.groupName ?? ""}|${r.status}`) ?? null,
+      assignee: r.assignee,
+      reqType: (r.reqTypeId != null ? reqTypeMap.get(r.reqTypeId) : undefined) ?? "REQUIREMENT",
+      module: r.module,
+      groupName: r.groupName,
+      updatedAt: r.updatedAt.toISOString(),
+    })),
+    total,
+    page,
+    pageSize,
+  };
 }

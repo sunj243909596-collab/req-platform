@@ -1,6 +1,6 @@
-# WMS 需求管理平台 (req-platform)
+# Req Platform
 
-> 医药物流仓储系统（WMS）的需求、发版、知识库与 AI Agent 一体化管理平台。
+> 面向研发团队的一体化需求管理平台：需求全生命周期跟踪 + 发版流转 + 知识库语义检索 + AI Agent 智能辅助。
 
 [![分支](https://img.shields.io/badge/branch-dev-blue)](https://github.com/sunj243909596-collab/req-platform/tree/dev)
 [![包管理](https://img.shields.io/badge/pnpm-workspace-orange)](https://pnpm.io)
@@ -11,18 +11,19 @@
 
 ## 一、项目简介
 
-WMS 需求管理平台是 **国药控股物流仓储系统（WMOS）** 的配套工具，覆盖：
+Req Platform 是一套**通用的需求管理 + 研发协作**平台，覆盖从需求收集、优先级排序、发版流转到上线归档的完整链路，并通过 RAG 知识库 + AI Agent 提升团队效率。
 
 | 模块 | 说明 |
 |---|---|
-| **需求管理** | 295 条业务需求的全生命周期跟踪（P0 紧急 12 条 / P1 163 / P2 48 / P3 72） |
+| **需求管理** | 需求的全生命周期跟踪（创建 / 评审 / 开发 / 测试 / 发版 / 归档） |
+| **优先级 & 标签** | 多级优先级（P0~P3）、自定义标签、模块归属 |
 | **发版管理** | Release 计划、需求关联、SIT 流转、上线发布 |
-| **知识库 + RAG** | 业务规则 / 字段映射 / 设计文档的语义检索（pgvector 452 chunks） |
-| **AI Agent** | 集成 Anthropic Claude 与 OpenAI，封装 LLM 对话、知识检索、规划能力 |
-| **业务规则引擎** | ASN 收货、GSP 追溯、发版自动审核等规则化沉淀 |
-| **认证授权** | JWT + RBAC（自定义角色）+ 微信扫码登录 |
+| **知识库 + RAG** | 业务文档 / 设计资料 / 历史需求的语义检索（pgvector 向量索引） |
+| **AI Agent** | 集成 Anthropic Claude 与 OpenAI，封装 LLM 对话、知识检索、规划、需求分析能力 |
+| **认证授权** | JWT + RBAC（自定义角色） |
+| **用户管理** | 账户、角色、组、状态管理 |
 
-业务背景：聚焦收货、出库拣货、入库管理、前置机下发、质量台账等 40 个业务模块。
+适配场景：互联网产品研发、企业内部系统、SaaS 平台、行业软件等需要规范需求流转的团队。
 
 ---
 
@@ -31,7 +32,7 @@ WMS 需求管理平台是 **国药控股物流仓储系统（WMOS）** 的配套
 | 层 | 选型 |
 |---|---|
 | **Monorepo** | pnpm workspace + TypeScript 5.7（`strict: true`） |
-| **前端 (client/)** | React 19 + Vite + MUI v7 + Radix UI + Emotion + Pinia/Zustand |
+| **前端 (client/)** | React 19 + Vite + MUI v7 + Radix UI + Emotion + 状态管理 |
 | **后端 (server/)** | Hono 4 + Prisma 6 + PostgreSQL 15（pgvector 扩展）+ JWT + bcryptjs |
 | **Agent (agent/)** | Anthropic SDK + OpenAI SDK + 自研 RAG 检索链路 |
 | **共享类型 (packages/shared-types/)** | 跨包 TypeScript 类型定义 |
@@ -59,7 +60,7 @@ req-platform/
 │   │   ├── services/       # 业务服务
 │   │   ├── middleware/     # JWT / RBAC
 │   │   └── lib/            # 基础设施
-│   └── uploads/kb/         # 知识库原始文件
+│   └── uploads/            # 知识库原始文件上传目录（不入 git）
 ├── agent/                  # AI Agent
 │   └── src/
 │       ├── llm/            # Claude / OpenAI 客户端 + Prompt 模板
@@ -70,13 +71,6 @@ req-platform/
 │       └── analysis/       # 需求分析
 ├── packages/
 │   └── shared-types/       # 跨包 TS 类型
-├── docs/                   # 知识库与项目文档
-│   ├── 00-需求总览.md      # 需求索引
-│   ├── 00-术语表.md        # WMOS 字段速查（ASN/LPN/库位等）
-│   ├── 00-架构总览.md      # 三层文档架构
-│   ├── 99-业务规则/        # ASN / GSP / 发版审核业务规则
-│   ├── plans/              # 实施计划
-│   └── 微信扫码登录集成方案.md
 ├── docker-compose.yml      # pgvector 容器
 ├── tsconfig.base.json      # 共享 TS 配置
 └── pnpm-lock.yaml
@@ -116,7 +110,7 @@ pnpm prisma:migrate          # 应用 schema
 pnpm prisma:seed             # 初始化基础数据
 ```
 
-### 4.5 启动开发服务（需开 3 个终端）
+### 4.5 启动开发服务（需开 2~3 个终端）
 
 ```bash
 # 终端 1：后端
@@ -126,7 +120,7 @@ pnpm --filter server dev     # tsx watch 模式，监听 src/index.ts
 pnpm --filter client dev     # Vite 默认 http://localhost:5173
 
 # 终端 3：（可选）知识库同步
-pnpm --filter agent kb:sync  # 把 docs/ 与 uploads/kb/ 同步进 RAG
+pnpm --filter agent kb:sync  # 把本地文档同步进 RAG
 ```
 
 ---
@@ -141,34 +135,43 @@ pnpm --filter agent kb:sync  # 把 docs/ 与 uploads/kb/ 同步进 RAG
 | `pnpm --filter server build` | 后端 TS 编译（`tsc`） |
 | `pnpm --filter server prisma:studio` | 打开 Prisma Studio（数据浏览） |
 | `pnpm --filter agent kb:sync` | 同步知识库到 RAG |
-| `docker compose up -d db` | 启动 PostgreSQL+pgvector |
+| `docker compose up -d db` | 启动 PostgreSQL + pgvector |
 
 ---
 
-## 六、文档导航
+## 六、配置 & 数据
 
-| 文档 | 用途 |
+### 6.1 环境变量
+
+| 变量 | 说明 | 示例 |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL 连接串 | `postgresql://req_admin:req_secret@localhost:5432/req_platform_db` |
+| `JWT_SECRET` | JWT 签名密钥 | （自行生成强随机字符串） |
+| `ANTHROPIC_API_KEY` | Claude API 密钥（Agent 用） | `sk-ant-...` |
+| `OPENAI_API_KEY` | OpenAI API 密钥（Agent 用，可选） | `sk-...` |
+
+通过 `agent-config.json` 或 `.env` 文件管理，**均不入 git**（`.gitignore` 已屏蔽）。
+
+### 6.2 数据模型概览
+
+| 模型 | 用途 |
 |---|---|
-| [`docs/00-需求总览.md`](docs/00-需求总览.md) | 需求索引（数量 / 状态 / 优先级 / 模块分布） |
-| [`docs/00-术语表.md`](docs/00-术语表.md) | WMOS 字段速查（ASN / LPN / 库位 严禁搞错） |
-| [`docs/00-架构总览.md`](docs/00-架构总览.md) | 三层文档架构（Index / Content / Reason） |
-| [`docs/99-业务规则/BR-001-ASN收货规则.md`](docs/99-业务规则/BR-001-ASN收货规则.md) | ASN 收货业务规则 |
-| [`docs/99-业务规则/BR-002-发版审核规则.md`](docs/99-业务规则/BR-002-发版审核规则.md) | 发版自动审核 |
-| [`docs/99-业务规则/BR-003-GSP追溯规则.md`](docs/99-业务规则/BR-003-GSP追溯规则.md) | GSP 药品追溯合规 |
-| [`docs/微信扫码登录集成方案.md`](docs/微信扫码登录集成方案.md) | 微信扫码登录技术方案 |
-| [`docs/Agent架构评审报告.md`](docs/Agent架构评审报告.md) | Agent 架构设计评审 |
-| [`docs/安全威胁评估报告.md`](docs/安全威胁评估报告.md) | 安全审计与漏洞清单 |
-| [`docs/plans/`](docs/plans/) | 实施计划归档 |
+| `User` | 平台用户 |
+| `Role` | 角色定义（RBAC） |
+| `Requirement` | 需求单（标题 / 描述 / 优先级 / 状态 / 分配人 / 模块 / 标签） |
+| `Release` | 发版计划（关联需求） |
+| `KnowledgeChunk` | RAG 知识库 chunk（pgvector 嵌入） |
+| `Notification` | 站内通知 |
 
 ---
 
-## 七、关键设计铁律
+## 七、关键设计原则
 
-1. **WMOS 字段严禁猜测** — 遇不确定字段先查 [`docs/00-术语表.md`](docs/00-术语表.md) 或 RAG 检索 `WMOS 数据表结构`
-2. **ASN 状态是 2 位码**（10/20/30/40/50/60/70），**不是 3 位码**（100/300）
-3. **审计字段五件套**：`createDateTime` / `createUserId` / `updateDateTime` / `updateUserId` / `wmVersionId`
-4. **GSP 合规**：代码层支持审计追踪 / 权限控制 / 更改留痕，具体合规由业务管理
-5. **AI 生成文档带行号前缀** — 提交前用 Python 正则清理：`re.sub(r'^\s*\d+\| ?', '', raw, flags=re.MULTILINE)`
+1. **类型安全** — TypeScript `strict: true`，跨包类型走 `packages/shared-types`
+2. **审计字段** — 主要实体记录 `createdAt` / `createdBy` / `updatedAt` / `updatedBy` / `version`
+3. **权限分层** — 路由级 JWT 鉴权 + 服务级 RBAC 角色检查
+4. **RAG 优先** — AI 回答前先检索知识库，降低幻觉
+5. **本地优先 / 云端可选** — pgvector 自托管，Anthropic/OpenAI 走云端 API
 
 ---
 
@@ -176,16 +179,25 @@ pnpm --filter agent kb:sync  # 把 docs/ 与 uploads/kb/ 同步进 RAG
 
 - 提交规范：`<type>(<scope>): <description>`（如 `feat(client): add filter row to dialog`）
 - 分支策略：`dev` 为集成分支，功能开发请基于 `dev` 拉特性分支
-- 修改前先查 `docs/00-需求总览.md` 与 `docs/00-术语表.md`
-- 写代码前看 `CLAUDE.md` 与 `docs/00-架构总览.md`
+- 写代码前：先看 `client/src/app/`、`server/src/routes/`、`agent/src/` 的现有实现风格
+- 新增需求模型字段时：先改 `server/prisma/schema.prisma` → `prisma migrate dev` → 同步 `shared-types`
+
+### 8.1 项目脚本
+
+| 路径 | 命令 | 作用 |
+|---|---|---|
+| 根 | `pnpm install` | 安装所有子包依赖 |
+| `server/` | `pnpm prisma:migrate` | 应用数据库迁移 |
+| `server/` | `pnpm prisma:seed` | 初始化种子数据 |
+| `server/` | `pnpm prisma:studio` | 打开数据库可视化工具 |
 
 ---
 
 ## 九、许可证
 
-内部项目，未经授权禁止外传。
+本项目采用 **MIT 许可证** — 详见 [LICENSE](./LICENSE) 文件（如未提供，请补充）。
 
 ---
 
-**维护者**：Jason SUN &middot; 黄噜噜（Hermes Agent）
+**维护者**：Jason SUN
 **最近更新**：2026-06-13

@@ -15,6 +15,11 @@ dist/
 .env.*.local
 agent-config.json
 
+# ===== 业务数据与文档（不入库） =====
+docs/
+CODE_MAP.md
+server/uploads/
+
 # ===== 临时与日志 =====
 .dev/
 .uploads/

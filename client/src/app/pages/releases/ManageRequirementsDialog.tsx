@@ -208,7 +208,7 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
             <FilterSelect label="状态" value={filters.status} options={statusOptions} onChange={(v) => handleFilterChange('status', v)} />
             <FilterSelect label="优先级" value={filters.priority} options={PRIORITY_OPTIONS} onChange={(v) => handleFilterChange('priority', v as Priority | undefined)} />
             <FilterSelect label="负责人" value={filters.assignee} options={assigneeOptions} onChange={(v) => handleFilterChange('assignee', v)} />
-            <FilterSelect label="类型" value={filters.reqType} options={reqTypes.map((t) => ({ value: t.code, label: t.name }))} onChange={(v) => handleFilterChange('reqType', v as ReqType | undefined)} />
+            <FilterSelect label="类型" value={filters.reqType} options={reqTypes.map((t) => ({ value: t.code, label: t.displayName }))} onChange={(v) => handleFilterChange('reqType', v as ReqType | undefined)} />
             <FilterSelect label="模块" value={filters.module} options={moduleOptions} onChange={(v) => handleFilterChange('module', v)} />
           </div>
         </div>
@@ -228,7 +228,7 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
               {hasActiveFilter(filters) ? '无匹配结果' : '没有可关联的需求'}
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
               <thead className="bg-[var(--canvas-parchment)] sticky top-0">
                 <tr>
                   <th className="px-3 py-2 w-10 text-left">
@@ -240,7 +240,7 @@ export function ManageRequirementsDialog({ releaseId, groupName, versionNo, open
                     />
                   </th>
                   <th className="px-3 py-2 text-left font-semibold">编码</th>
-                  <th className="px-3 py-2 text-left font-semibold">标题</th>
+                  <th className="px-3 py-2 text-left font-semibold" style={{ width: '40%' }}>标题</th>
                   <th className="px-3 py-2 text-left font-semibold w-20">优先级</th>
                   <th className="px-3 py-2 text-left font-semibold w-24">状态</th>
                   <th className="px-3 py-2 text-left font-semibold w-24">负责人</th>
@@ -332,7 +332,7 @@ function hasActiveFilter(f: UnassignedRequirementsQuery): boolean {
 }
 
 function reqTypeLabel(types: RequirementTypeItem[], code: string): string {
-  return types.find((t) => t.code === code)?.name || code;
+  return types.find((t) => t.code === code)?.displayName || code;
 }
 
 function Pagination({ current, total, pageSize, onChange }: { current: number; total: number; pageSize: number; onChange: (p: number) => void }) {

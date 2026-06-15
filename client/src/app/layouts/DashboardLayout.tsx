@@ -22,6 +22,8 @@ import {
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { authStore } from '../../stores/auth';
+import { permissionStore } from '../../stores/permission';
+import { usePermission } from '../hooks/usePermission';
 import type { UserInfo } from '../../api/auth';
 import { NotificationBell } from '../components/NotificationBell';
 
@@ -34,22 +36,30 @@ function roleLabel(role: string): string {
   }
 }
 
-const workflowNav = [
-  { name: '工作台', href: '/app', icon: LayoutDashboard },
-  { name: '需求管理', href: '/app/requirements', icon: FileText },
-  { name: '发版计划', href: '/app/releases', icon: Rocket },
-  { name: 'AI 助手', href: '/app/ai', icon: Bot },
-  { name: '回收站', href: '/app/requirements/trash', icon: Trash2 },
+interface NavItem {
+  name: string;
+  href: string;
+  icon: typeof FileText;
+  /** 权限码；不填则默认所有人都可见 */
+  permission?: string;
+}
+
+const workflowNav: NavItem[] = [
+  { name: '工作台', href: '/app', icon: LayoutDashboard, permission: 'page:dashboard' },
+  { name: '需求管理', href: '/app/requirements', icon: FileText, permission: 'page:requirements' },
+  { name: '发版计划', href: '/app/releases', icon: Rocket, permission: 'page:releases' },
+  { name: 'AI 助手', href: '/app/ai', icon: Bot, permission: 'page:ai' },
+  { name: '回收站', href: '/app/requirements/trash', icon: Trash2, permission: 'page:trash' },
 ];
 
-const resourceNav = [
-  { name: '操作手册', href: '/app/manuals', icon: BookOpen },
-  { name: '帮助中心', href: '/app/help', icon: BookText },
+const resourceNav: NavItem[] = [
+  { name: '操作手册', href: '/app/manuals', icon: BookOpen, permission: 'page:manuals' },
+  { name: '帮助中心', href: '/app/help', icon: BookText, permission: 'page:help' },
 ];
 
-const managementNav = [
-  { name: '团队管理', href: '/app/team', icon: Users },
-  { name: '设置', href: '/app/settings', icon: SettingsIcon },
+const managementNav: NavItem[] = [
+  { name: '团队管理', href: '/app/team', icon: Users, permission: 'page:team' },
+  { name: '设置', href: '/app/settings', icon: SettingsIcon, permission: 'page:settings' },
 ];
 
 const allNav = [...workflowNav, ...resourceNav, ...managementNav];
@@ -72,14 +82,16 @@ function SidebarNav({
   onNavigate,
   collapsed,
 }: {
-  items: typeof workflowNav;
+  items: NavItem[];
   pathname: string;
   onNavigate?: () => void;
   collapsed: boolean;
 }) {
+  const { has } = usePermission();
+  const visible = items.filter((it) => !it.permission || has(it.permission));
   return (
     <>
-      {items.map((item) => {
+      {visible.map((item) => {
         const active = isNavActive(pathname, item.href);
         return (
           <Link
@@ -215,7 +227,12 @@ export function DashboardLayout() {
     authStore.fetchUser().then((u) => {
       setUser(u);
       setUserLoading(false);
-      if (!u) navigate('/', { replace: true });
+      if (!u) {
+        navigate('/', { replace: true });
+        return;
+      }
+      // 已登录后再拉权限（auth 走完，token 必定有）
+      permissionStore.fetch().catch(() => {});
     });
   }, [navigate]);
 

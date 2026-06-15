@@ -20,6 +20,7 @@ import { Settings } from './pages/settings/Settings';
 import { ManualsPage } from './pages/manuals/ManualsPage';
 import { HelpCenterPage } from './pages/help/HelpCenterPage';
 import { NotFound } from './pages/NotFound';
+import { RequirePermission } from './components/RequirePermission';
 
 export const router = createBrowserRouter([
   {
@@ -48,63 +49,123 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            Component: DashboardPage,
+            element: (
+              <RequirePermission permission="page:dashboard">
+                <DashboardPage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'requirements',
-            Component: RequirementsList,
+            element: (
+              <RequirePermission permission="page:requirements">
+                <RequirementsList />
+              </RequirePermission>
+            ),
           },
           {
             path: 'requirements/trash',
-            Component: RequirementsTrash,
+            element: (
+              <RequirePermission permission="page:trash">
+                <RequirementsTrash />
+              </RequirePermission>
+            ),
           },
           {
             path: 'requirements/new',
-            Component: CreateRequirement,
+            element: (
+              <RequirePermission permission="page:requirements">
+                <CreateRequirement />
+              </RequirePermission>
+            ),
           },
           {
             path: 'requirements/:id/edit',
-            Component: EditRequirement,
+            element: (
+              <RequirePermission permission="page:requirements">
+                <EditRequirement />
+              </RequirePermission>
+            ),
           },
           {
             path: 'requirements/:id',
-            Component: RequirementDetail,
+            element: (
+              <RequirePermission permission="page:requirements">
+                <RequirementDetail />
+              </RequirePermission>
+            ),
           },
           {
             path: 'releases',
-            Component: ReleaseList,
+            element: (
+              <RequirePermission permission="page:releases">
+                <ReleaseList />
+              </RequirePermission>
+            ),
           },
           {
             path: 'releases/new',
-            Component: CreateRelease,
+            element: (
+              <RequirePermission permission="page:releases">
+                <CreateRelease />
+              </RequirePermission>
+            ),
           },
           {
             path: 'releases/:id/edit',
-            Component: EditRelease,
+            element: (
+              <RequirePermission permission="page:releases">
+                <EditRelease />
+              </RequirePermission>
+            ),
           },
           {
             path: 'releases/:id',
-            Component: ReleaseDetail,
+            element: (
+              <RequirePermission permission="page:releases">
+                <ReleaseDetail />
+              </RequirePermission>
+            ),
           },
           {
             path: 'ai',
-            Component: AIAssistant,
+            element: (
+              <RequirePermission permission="page:ai">
+                <AIAssistant />
+              </RequirePermission>
+            ),
           },
           {
             path: 'manuals',
-            Component: ManualsPage,
+            element: (
+              <RequirePermission permission="page:manuals">
+                <ManualsPage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'help',
-            Component: HelpCenterPage,
+            element: (
+              <RequirePermission permission="page:help">
+                <HelpCenterPage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'team',
-            Component: TeamManagement,
+            element: (
+              <RequirePermission permission="page:team">
+                <TeamManagement />
+              </RequirePermission>
+            ),
           },
           {
             path: 'settings',
-            Component: Settings,
+            element: (
+              <RequirePermission permission="page:settings">
+                <Settings />
+              </RequirePermission>
+            ),
           },
         ],
       },

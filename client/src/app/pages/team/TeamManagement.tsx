@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Shield, Edit, Trash2, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Plus, Users, Shield, Edit, Trash2, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   listGroups,
@@ -33,6 +34,9 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function TeamManagement() {
+  const navigate = useNavigate();
+  const currentUser = authStore.currentUser;
+  const isAdmin = currentUser?.role === 'ADMIN';
   const [activeTab, setActiveTab] = useState<Tab>('users');
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [users, setUsers] = useState<UserInfo[]>([]);
@@ -204,9 +208,19 @@ export function TeamManagement() {
           title="团队管理"
           description="管理用户、组织和权限"
           actions={
-            activeTab !== 'roles' ? (
-              <button
-                onClick={() => {
+            <>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/app/settings?tab=permissions')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-[var(--primary)] text-[var(--primary)] rounded-[var(--radius-pill)] hover:bg-[var(--primary)] hover:text-white transition-colors"
+                >
+                  <Shield size={14} /> 去权限管理 <ArrowRight size={13} />
+                </button>
+              )}
+              {activeTab !== 'roles' ? (
+                <button
+                  onClick={() => {
                   if (activeTab === 'groups') setShowCreateGroup(true);
                   if (activeTab === 'users') setShowCreateUser(true);
                 }}
@@ -215,7 +229,8 @@ export function TeamManagement() {
                 <Plus size={18} />
                 <span>添加{activeTab === 'users' ? '用户' : '组'}</span>
               </button>
-            ) : undefined
+              ) : undefined}
+            </>
           }
         />
 

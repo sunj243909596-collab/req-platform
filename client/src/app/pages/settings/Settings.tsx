@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Settings as SettingsIcon, Database, Workflow as WorkflowIcon, Palette, FolderTree, Plus, Trash2, Edit2, Loader2, AlertTriangle, Zap, Upload, FileText, X, BookOpen, Sparkles, Tag, Hash, ChevronDown, ChevronRight } from 'lucide-react';
+import { useSearchParams } from 'react-router';
+import { Settings as SettingsIcon, Database, Workflow as WorkflowIcon, Palette, FolderTree, Plus, Trash2, Edit2, Loader2, AlertTriangle, Zap, Upload, FileText, X, BookOpen, Sparkles, Tag, Hash, ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
 import { RequirementCategorySettings } from './RequirementCategorySettings';
 import { ReqTypeSettings } from './ReqTypeSettings';
 import { NumberRuleSettings } from './NumberRuleSettings';
@@ -10,6 +11,7 @@ import { AISettings } from './AISettings';
 import { RagSettings } from './RagSettings';
 import { TeamLearningSettings } from './TeamLearningSettings';
 import { SkillsSettings } from './SkillsSettings';
+import { PermissionsSettings } from './PermissionsSettings';
 import { toast } from 'sonner';
 import {
   listKnowledgeBases,
@@ -125,11 +127,38 @@ function SettingsNavGroup({
 }
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<Tab>('general');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as Tab) || 'general';
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     categories: false,
     numberRule: false,
   });
+
+  // 同步 ?tab= → 内部 state（让 TeamManagement 跳转生效）
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && tab !== activeTab) setActiveTab(tab as Tab);
+  }, [searchParams, activeTab]);
+
+  // 同步内部 state → ?tab=（刷新页面保持）
+  const selectTab = useCallback(
+    (id: Tab) => {
+      setActiveTab(id);
+      const parsed = parseSettingsTab(id);
+      if (parsed) {
+        setExpandedGroups((prev) => ({ ...prev, [parsed.kind]: true }));
+      }
+      if (searchParams.get('tab') !== id) {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('tab', id);
+          return next;
+        }, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams]
+  );
 
   const parsedTab = parseSettingsTab(activeTab);
 
@@ -143,14 +172,6 @@ export function Settings() {
     setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const selectTab = (id: Tab) => {
-    setActiveTab(id);
-    const parsed = parseSettingsTab(id);
-    if (parsed) {
-      setExpandedGroups((prev) => ({ ...prev, [parsed.kind]: true }));
-    }
-  };
-
   const flatTabs: NavItem[] = [
     { id: 'ai', icon: <Sparkles size={16} />, label: 'AI 设置' },
     { id: 'skills', icon: <Zap size={16} />, label: 'AI Skills' },
@@ -161,6 +182,7 @@ export function Settings() {
     { id: 'workflow', icon: <WorkflowIcon size={16} />, label: '工作流' },
     { id: 'fields', icon: <Palette size={16} />, label: '自定义字段' },
     { id: 'reqTypes', icon: <Tag size={16} />, label: '需求类型' },
+    { id: 'permissions', icon: <ShieldCheck size={16} />, label: '权限管理' },
   ];
 
   const navGroups: NavGroup[] = [
@@ -236,6 +258,7 @@ export function Settings() {
         {activeTab === 'workflow' && <WorkflowDesigner />}
         {activeTab === 'fields' && <CustomFieldSettings />}
         {activeTab === 'reqTypes' && <ReqTypeSettings />}
+        {activeTab === 'permissions' && <PermissionsSettings />}
         </SurfaceCard>
       </div>
     </AppPageShell>

@@ -4,7 +4,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { serve } from "@hono/node-server";
 import bcrypt from "bcryptjs";
 import { prisma } from "./lib/prisma";
-import { authMiddleware, generateToken } from "./middleware/auth";
+import { authMiddleware, generateToken, requireRole } from "./middleware/auth";
 import { loginRateLimit, aiRateLimit, generalRateLimit } from "./middleware/rate-limit";
 import { createAgentRoutes } from "./routes/agent.routes";
 import { createKnowledgeRoutes } from "./routes/knowledge.routes";
@@ -19,6 +19,10 @@ import { createSkillRoutes } from "./routes/skill.routes";
 import { createManualRoutes } from "./routes/manual.routes";
 import { createRequirementTypeRoutes } from "./routes/requirement-types.routes";
 import { createRequirementNumberRuleRoutes } from "./routes/requirement-number-rule.routes";
+import { createPermissionGroupRoutes } from "./routes/permission-group.routes";
+import { createPermissionResourceRoutes } from "./routes/permission-resource.routes";
+import { createPermissionRoutes } from "./routes/permission.routes";
+import { invalidatePermissionCache } from "./services/permission-cache.service";
 import { prismaStore } from "./services/prisma.store";
 import { getDashboardStats } from "./services/requirement.service";
 import { getCategoryHeatmap } from "./services/requirement.service";
@@ -104,6 +108,11 @@ api.route("/req-number-rule", createRequirementNumberRuleRoutes());
 api.route("/requirements", createRequirementRoutes());
 api.route("/releases", createReleaseRoutes());
 
+// Permission Management
+api.route("/permission-groups", createPermissionGroupRoutes());
+api.route("/permission-resources", createPermissionResourceRoutes());
+api.route("/permissions", createPermissionRoutes());
+
 api.get("/users/me", async (c) => {
   const userId = c.get("userId");
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -116,6 +125,22 @@ api.get("/users/me", async (c) => {
     groupName: user.groupName,
     isActive: user.isActive,
   });
+});
+
+// 当前用户的权限码（前端 permissionStore 用）
+api.get("/users/me/permissions", async (c) => {
+  const perms = c.get("permissions") as Set<string> | undefined;
+  const isAdmin = c.get("isAdmin") as boolean | undefined;
+  return c.json({
+    permissions: perms ? Array.from(perms) : [],
+    isAdmin: !!isAdmin,
+  });
+});
+
+// Admin 强制清权限缓存（改完 PG 后调，让所有在线用户下次请求重新解析）
+api.post("/admin/invalidate-permission-cache", requireRole("ADMIN"), async (c) => {
+  invalidatePermissionCache();
+  return c.json({ ok: true });
 });
 
 api.get("/stats/dashboard", async (c) => {
@@ -275,6 +300,18 @@ import("./services/role.service").then(m => m.seedDefaultRoles())
 
 // Seed default AI skills on startup
 seedDefaultSkills().then(() => console.log("[startup] Default AI skills seeded")).catch((err) => console.warn("[startup] Skill seeding:", err.message));
+
+// Seed default permission resources & groups on startup
+// 注意：permission-group 必须在 resource 之后，否则 seed 时找不到 permission code
+import("./services/permission-resource.service")
+  .then(m => m.seedDefaultPermissionResources())
+  .then((r) => {
+    console.log(`[startup] Default permission resources seeded: ${r.resources} resources, ${r.permissions} permissions`);
+    return import("./services/permission-group.service");
+  })
+  .then(m => m.seedDefaultPermissionGroups())
+  .then(r => console.log(`[startup] Default permission groups seeded: ${r.groups} groups, ${r.bindings} bindings`))
+  .catch(err => console.warn("[startup] Permission seeding:", err.message));
 
 // Repair KB file links for existing documents (one-time sync fix).
 // Set REPAIR_KB_FILE_LINKS=true to run; off by default since migration is complete.

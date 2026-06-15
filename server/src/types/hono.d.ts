@@ -4,6 +4,8 @@ declare module "hono" {
     username: string;
     role: string;
     groupName: string | null;
+    isAdmin: boolean;
+    permissions: Set<string>;
   }
 }
 

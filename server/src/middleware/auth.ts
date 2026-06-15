@@ -1,6 +1,12 @@
 // JWT Authentication middleware for Hono
 import type { MiddlewareHandler } from "hono";
 import jwt from "jsonwebtoken";
+import { prisma } from "../lib/prisma";
+import { resolveUserPermissions } from "../services/permission-resolver.service";
+import {
+  getCachedPermissions,
+  setCachedPermissions,
+} from "../services/permission-cache.service";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET === "dev-secret-change-in-production") {
@@ -32,6 +38,27 @@ export const authMiddleware: MiddlewareHandler = async (c, next) => {
     c.set("username", decoded.username);
     c.set("role", decoded.role);
     c.set("groupName", decoded.groupName);
+    // 注入权限上下文
+    c.set("isAdmin", decoded.role === "ADMIN");
+    const cached = getCachedPermissions(decoded.userId);
+    if (cached) {
+      c.set("permissions", cached);
+    } else {
+      let perms: Set<string>;
+      if (decoded.role === "ADMIN") {
+        // ADMIN 短路：一次性拉所有 permission code，命中任意 has()
+        const all = await prisma.permission.findMany({ select: { code: true } });
+        perms = new Set(all.map((r) => r.code));
+      } else {
+        perms = await resolveUserPermissions(
+          decoded.userId,
+          decoded.role,
+          decoded.groupName
+        );
+      }
+      setCachedPermissions(decoded.userId, perms);
+      c.set("permissions", perms);
+    }
     await next();
   } catch {
     return c.json({ error: "令牌无效或已过期" }, 401);

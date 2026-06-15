@@ -3,6 +3,10 @@ export interface AuthContext {
   username: string;
   role: string;
   groupName: string | null;
+  /** 用户最终 permission code 集合（admin 包含 "*"），由 authMiddleware 注入。 */
+  permissions?: Set<string>;
+  /** 是否为 ADMIN 隐式超管（短路权限检查） */
+  isAdmin?: boolean;
 }
 
 /** Build Prisma where clause for group-scoped data access */

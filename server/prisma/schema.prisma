@@ -11,25 +11,26 @@ datasource db {
 // ================= Models =================
 
 model User {
-  id            Int            @id @default(autoincrement())
-  username      String         @unique
-  passwordHash  String
-  displayName   String
-  role          String         @default("MEMBER")       // denormalized role name for fast access
-  roleId        Int?           @map("role_id")          // FK to Role (null for legacy)
-  roleRef       Role?          @relation(fields: [roleId], references: [id])
-  groupName     String?
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  notifications Notification[]
+  id               Int                   @id @default(autoincrement())
+  username         String                @unique
+  passwordHash     String
+  displayName      String
+  role             String                @default("MEMBER") // denormalized role name for fast access
+  roleId           Int?                  @map("role_id") // FK to Role (null for legacy)
+  roleRef          Role?                 @relation(fields: [roleId], references: [id])
+  groupName        String?
+  isActive         Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  notifications    Notification[]
+  permissionGroups UserPermissionGroup[]
 }
 
 /// 角色定义 — 可自定义的角色，ADMIN 为系统内置不可删除
 model Role {
   id          Int      @id @default(autoincrement())
-  name        String   @unique                 // 角色名，如 ADMIN, 测试主管
-  displayName String   @map("display_name")    // 显示名
+  name        String   @unique // 角色名，如 ADMIN, 测试主管
+  displayName String   @map("display_name") // 显示名
   description String?
   isSystem    Boolean  @default(false) @map("is_system") // 系统内置角色不可删除
   sortOrder   Int      @default(0) @map("sort_order")
@@ -39,12 +40,12 @@ model Role {
 }
 
 model Group {
-  id              Int              @id @default(autoincrement())
-  groupName       String           @unique
-  description     String?
-  createdAt       DateTime         @default(now())
+  id           Int                  @id @default(autoincrement())
+  groupName    String               @unique
+  description  String?
+  createdAt    DateTime             @default(now())
   workflowDefs WorkflowDefinition[]
-  customFields    CustomField[]
+  customFields CustomField[]
 }
 
 model RequirementType {
@@ -57,7 +58,7 @@ model RequirementType {
   enabled     Boolean  @default(true)
   currentSeq  Int      @default(0) @map("current_seq") // 已废弃，保留列兼容；计数见 RequirementSeqCounter
   createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt     @map("updated_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   requirements          Requirement[]
   requirementCategories RequirementCategory[]
@@ -70,14 +71,14 @@ model RequirementType {
 /// 按「选中分类 + 需求类型」独立计数的序列号桶
 /// 对应编码前缀：{rule.prefix}-{根分类code}-{子分类code}-{类型首字母}
 model RequirementSeqCounter {
-  id         Int      @id @default(autoincrement())
-  categoryId Int      @map("category_id")
+  id         Int                 @id @default(autoincrement())
+  categoryId Int                 @map("category_id")
   category   RequirementCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  reqTypeId  Int      @map("req_type_id")
-  reqType    RequirementType @relation(fields: [reqTypeId], references: [id], onDelete: Cascade)
-  currentSeq Int      @default(0) @map("current_seq")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  reqTypeId  Int                 @map("req_type_id")
+  reqType    RequirementType     @relation(fields: [reqTypeId], references: [id], onDelete: Cascade)
+  currentSeq Int                 @default(0) @map("current_seq")
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
 
   @@unique([categoryId, reqTypeId])
   @@index([reqTypeId])
@@ -90,24 +91,24 @@ model RequirementNumberRule {
   reqTypeId Int             @map("req_type_id")
   reqType   RequirementType @relation(fields: [reqTypeId], references: [id], onDelete: Cascade)
   createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt     @map("updated_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
 
   @@unique([reqTypeId])
 }
 
 model RequirementCategory {
-  id        Int                   @id @default(autoincrement())
-  name      String
-  code      String?
-  reqTypeId Int?                  @map("req_type_id")
-  reqType   RequirementType?      @relation(fields: [reqTypeId], references: [id], onDelete: SetNull)
-  parentId  Int?                  @map("parent_id")
-  parent    RequirementCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children  RequirementCategory[] @relation("CategoryTree")
-  sortOrder Int                   @default(0) @map("sort_order")
-  enabled   Boolean               @default(true)
-  createdAt DateTime              @default(now()) @map("created_at")
-  updatedAt DateTime              @updatedAt @map("updated_at")
+  id           Int                     @id @default(autoincrement())
+  name         String
+  code         String?
+  reqTypeId    Int?                    @map("req_type_id")
+  reqType      RequirementType?        @relation(fields: [reqTypeId], references: [id], onDelete: SetNull)
+  parentId     Int?                    @map("parent_id")
+  parent       RequirementCategory?    @relation("CategoryTree", fields: [parentId], references: [id])
+  children     RequirementCategory[]   @relation("CategoryTree")
+  sortOrder    Int                     @default(0) @map("sort_order")
+  enabled      Boolean                 @default(true)
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
   requirements Requirement[]
   seqCounters  RequirementSeqCounter[]
 
@@ -116,47 +117,47 @@ model RequirementCategory {
 }
 
 model Requirement {
-  id              Int       @id @default(autoincrement())
-  reqNo           String    @unique
-  reqTypeId       Int?      @map("req_type_id")
-  reqType         RequirementType? @relation(fields: [reqTypeId], references: [id], onDelete: SetNull)
-  categoryId      Int?      @map("category_id")
-  category        RequirementCategory? @relation(fields: [categoryId], references: [id])
-  title           String
-  module          String?
-  priority        String    @default("P2")              // P0, P1, P2, P3
-  status          String    @default("待评审")
-  assignee        String?
-  reporter        String?
-  targetDate      DateTime? @map("target_date")
-  terminals       Json?
-  tags            Json?
-  gspImpact       String?   @map("gsp_impact") @default("待评估")
-  relatedTables   String?   @map("related_tables")
-  groupName       String    @map("group_name")
-  background      String?
-  description     String?
-  designSolution  String?   @map("design_solution")
-  embedding      Unsupported("vector(1024)")?
-  isDeleted       Boolean   @default(false) @map("is_deleted")
-  deletedAt       DateTime? @map("deleted_at")
-  deletedBy       String?   @map("deleted_by")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  releaseId       Int?      @map("release_id")
-  release         Release?  @relation(fields: [releaseId], references: [id])
-  subTasks        SubTask[]
-  relationsFrom   ReqRelation[] @relation("FromReq")
-  relationsTo     ReqRelation[] @relation("ToReq")
-  customValues    ReqCustomValue[]
-  attachments     Attachment[]
-  documents       Document[]
-  comments        Comment[]
-  testCases       TestCase[]
+  id               Int                          @id @default(autoincrement())
+  reqNo            String                       @unique
+  reqTypeId        Int?                         @map("req_type_id")
+  reqType          RequirementType?             @relation(fields: [reqTypeId], references: [id], onDelete: SetNull)
+  categoryId       Int?                         @map("category_id")
+  category         RequirementCategory?         @relation(fields: [categoryId], references: [id])
+  title            String
+  module           String?
+  priority         String                       @default("P2") // P0, P1, P2, P3
+  status           String                       @default("待评审")
+  assignee         String?
+  reporter         String?
+  targetDate       DateTime?                    @map("target_date")
+  terminals        Json?
+  tags             Json?
+  gspImpact        String?                      @default("待评估") @map("gsp_impact")
+  relatedTables    String?                      @map("related_tables")
+  groupName        String                       @map("group_name")
+  background       String?
+  description      String?
+  designSolution   String?                      @map("design_solution")
+  embedding        Unsupported("vector(1024)")?
+  isDeleted        Boolean                      @default(false) @map("is_deleted")
+  deletedAt        DateTime?                    @map("deleted_at")
+  deletedBy        String?                      @map("deleted_by")
+  createdAt        DateTime                     @default(now()) @map("created_at")
+  updatedAt        DateTime                     @updatedAt @map("updated_at")
+  releaseId        Int?                         @map("release_id")
+  release          Release?                     @relation(fields: [releaseId], references: [id])
+  subTasks         SubTask[]
+  relationsFrom    ReqRelation[]                @relation("FromReq")
+  relationsTo      ReqRelation[]                @relation("ToReq")
+  customValues     ReqCustomValue[]
+  attachments      Attachment[]
+  documents        Document[]
+  comments         Comment[]
+  testCases        TestCase[]
   regressionSuites RegressionSuite[]
-  activityLogs    ActivityLog[]
-  agentInsights   ReqAgentInsight[]
-  analysisCaches  AnalysisCache[]
+  activityLogs     ActivityLog[]
+  agentInsights    ReqAgentInsight[]
+  analysisCaches   AnalysisCache[]
 
   @@index([reqTypeId])
 }
@@ -176,66 +177,66 @@ model SubTask {
 }
 
 model ReqRelation {
-  id         Int         @id @default(autoincrement())
-  fromReqId  Int         @map("from_req_id")
-  toReqId    Int         @map("to_req_id")
-  relType    String      @map("rel_type")              // PARENT_CHILD, BLOCKS, DEPENDS_ON, DUPLICATES, RELATED
-  createdAt  DateTime    @default(now()) @map("created_at")
-  fromReq    Requirement @relation("FromReq", fields: [fromReqId], references: [id])
-  toReq      Requirement @relation("ToReq", fields: [toReqId], references: [id])
+  id        Int         @id @default(autoincrement())
+  fromReqId Int         @map("from_req_id")
+  toReqId   Int         @map("to_req_id")
+  relType   String      @map("rel_type") // PARENT_CHILD, BLOCKS, DEPENDS_ON, DUPLICATES, RELATED
+  createdAt DateTime    @default(now()) @map("created_at")
+  fromReq   Requirement @relation("FromReq", fields: [fromReqId], references: [id])
+  toReq     Requirement @relation("ToReq", fields: [toReqId], references: [id])
 }
 
 model CustomField {
-  id          Int             @id @default(autoincrement())
-  groupId     Int?            @map("group_id")           // nullable → 全局共用字段
-  group       Group?          @relation(fields: [groupId], references: [id])
-  fieldName   String          @map("field_name")
-  fieldKey    String          @map("field_key")
-  fieldType   String          @map("field_type")         // TEXT, TEXTAREA, NUMBER, DATE, SELECT, MULTI_SELECT, CHECKBOX
+  id          Int              @id @default(autoincrement())
+  groupId     Int?             @map("group_id") // nullable → 全局共用字段
+  group       Group?           @relation(fields: [groupId], references: [id])
+  fieldName   String           @map("field_name")
+  fieldKey    String           @map("field_key")
+  fieldType   String           @map("field_type") // TEXT, TEXTAREA, NUMBER, DATE, SELECT, MULTI_SELECT, CHECKBOX
   options     Json?
-  required    Boolean         @default(false)
-  sortOrder   Int             @default(0) @map("sort_order")
+  required    Boolean          @default(false)
+  sortOrder   Int              @default(0) @map("sort_order")
   placeholder String?
-  createdAt   DateTime        @default(now()) @map("created_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
   values      ReqCustomValue[]
 }
 
 model ReqCustomValue {
-  id      Int          @id @default(autoincrement())
-  reqId   Int          @map("req_id")
-  req     Requirement  @relation(fields: [reqId], references: [id])
-  fieldId Int          @map("field_id")
-  field   CustomField  @relation(fields: [fieldId], references: [id])
+  id      Int         @id @default(autoincrement())
+  reqId   Int         @map("req_id")
+  req     Requirement @relation(fields: [reqId], references: [id])
+  fieldId Int         @map("field_id")
+  field   CustomField @relation(fields: [fieldId], references: [id])
   value   String?
 }
 
 model Release {
-  id            Int            @id @default(autoincrement())
-  versionNo     String         @map("version_no")
-  releaseName   String         @map("release_name")
-  status        String         @default("PLANNED")      // PLANNED, IN_DEV, IN_REVIEW, RELEASED, CLOSED, CANCELLED
-  groupName     String         @map("group_name")
-  owner         String?
-  plannedDate   DateTime?      @map("planned_date")
-  actualDate    DateTime?      @map("actual_date")
-  description   String?
-  isDeleted     Boolean        @default(false) @map("is_deleted")
-  deletedAt     DateTime?      @map("deleted_at")
-  deletedBy     String?        @map("deleted_by")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  requirements  Requirement[]
-  reviews       ReleaseReview[]
+  id           Int             @id @default(autoincrement())
+  versionNo    String          @map("version_no")
+  releaseName  String          @map("release_name")
+  status       String          @default("PLANNED") // PLANNED, IN_DEV, IN_REVIEW, RELEASED, CLOSED, CANCELLED
+  groupName    String          @map("group_name")
+  owner        String?
+  plannedDate  DateTime?       @map("planned_date")
+  actualDate   DateTime?       @map("actual_date")
+  description  String?
+  isDeleted    Boolean         @default(false) @map("is_deleted")
+  deletedAt    DateTime?       @map("deleted_at")
+  deletedBy    String?         @map("deleted_by")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  requirements Requirement[]
+  reviews      ReleaseReview[]
 }
 
 model ReleaseReview {
-  id         Int      @id @default(autoincrement())
-  releaseId  Int      @map("release_id")
-  release    Release  @relation(fields: [releaseId], references: [id])
-  reviewer   String
-  action     String                                  // SUBMITTED, APPROVED, REJECTED
-  comment    String?
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  releaseId Int      @map("release_id")
+  release   Release  @relation(fields: [releaseId], references: [id])
+  reviewer  String
+  action    String // SUBMITTED, APPROVED, REJECTED
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
 }
 
 model Attachment {
@@ -256,7 +257,7 @@ model Document {
   req       Requirement @relation(fields: [reqId], references: [id])
   docName   String      @map("doc_name")
   docPath   String?     @map("doc_path")
-  docType   String?     @map("doc_type")             // BRD, FSD, PRD, OTHER
+  docType   String?     @map("doc_type") // BRD, FSD, PRD, OTHER
   createdAt DateTime    @default(now()) @map("created_at")
 }
 
@@ -271,21 +272,21 @@ model Comment {
 }
 
 model TestCase {
-  id           Int         @id @default(autoincrement())
-  reqId        Int         @map("req_id")
-  req          Requirement @relation(fields: [reqId], references: [id])
-  caseNo       String      @map("case_no")
-  title        String
-  precondition String?     @map("precondition")
-  steps        Json        // [{ "step": 1, "action": "...", "expected": "..." }]
-  priority     String      @default("P2")  // P0/P1/P2/P3
-  source       String      @default("manual")  // "AI" | "manual"
-  createdBy    String      @map("created_by")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
-  runs                 TestRun[]
-  suiteItems           RegressionSuiteItem[]
-  regressionRunItems   RegressionRunItem[]
+  id                 Int                   @id @default(autoincrement())
+  reqId              Int                   @map("req_id")
+  req                Requirement           @relation(fields: [reqId], references: [id])
+  caseNo             String                @map("case_no")
+  title              String
+  precondition       String?               @map("precondition")
+  steps              Json // [{ "step": 1, "action": "...", "expected": "..." }]
+  priority           String                @default("P2") // P0/P1/P2/P3
+  source             String                @default("manual") // "AI" | "manual"
+  createdBy          String                @map("created_by")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+  runs               TestRun[]
+  suiteItems         RegressionSuiteItem[]
+  regressionRunItems RegressionRunItem[]
 
   @@index([reqId])
 }
@@ -294,9 +295,9 @@ model TestRun {
   id          Int      @id @default(autoincrement())
   testCaseId  Int      @map("test_case_id")
   testCase    TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
-  status      String   @default("pending")  // pending | passed | failed | blocked
-  result      String?  // 测试结果文本备注
-  screenshots Json?    // ["uploads/test-runs/{runId}/screen1.png", ...]
+  status      String   @default("pending") // pending | passed | failed | blocked
+  result      String? // 测试结果文本备注
+  screenshots Json? // ["uploads/test-runs/{runId}/screen1.png", ...]
   createdBy   String   @map("created_by")
   createdAt   DateTime @default(now()) @map("created_at")
 
@@ -346,15 +347,15 @@ model RegressionRun {
 }
 
 model RegressionRunItem {
-  id          Int            @id @default(autoincrement())
-  runId       Int            @map("run_id")
-  testCaseId  Int            @map("test_case_id")
-  status      String         @default("pending") @map("status") // pending | passed | failed | blocked
-  result      String?        @map("result")
-  screenshots Json?          @map("screenshots")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  run         RegressionRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
-  testCase    TestCase       @relation(fields: [testCaseId], references: [id])
+  id          Int           @id @default(autoincrement())
+  runId       Int           @map("run_id")
+  testCaseId  Int           @map("test_case_id")
+  status      String        @default("pending") @map("status") // pending | passed | failed | blocked
+  result      String?       @map("result")
+  screenshots Json?         @map("screenshots")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  run         RegressionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  testCase    TestCase      @relation(fields: [testCaseId], references: [id])
 
   @@index([runId])
 }
@@ -364,7 +365,7 @@ model ActivityLog {
   reqId     Int         @map("req_id")
   req       Requirement @relation(fields: [reqId], references: [id])
   actor     String
-  action    String                                  // CREATED, UPDATED, STATUS_CHANGED, ASSIGNED, COMMENTED, DELETED, RESTORED
+  action    String // CREATED, UPDATED, STATUS_CHANGED, ASSIGNED, COMMENTED, DELETED, RESTORED
   fieldName String?     @map("field_name")
   oldValue  String?     @map("old_value")
   newValue  String?     @map("new_value")
@@ -373,14 +374,14 @@ model ActivityLog {
 }
 
 model Notification {
-  id        Int        @id @default(autoincrement())
-  userId    Int        @map("user_id")
-  user      User       @relation(fields: [userId], references: [id])
-  type      String                                  // ASSIGNED, STATUS_CHANGED, COMMENTED, MENTIONED, REVIEW_SUBMITTED, REVIEW_RESULT
-  reqId     Int?       @map("req_id")
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  type      String // ASSIGNED, STATUS_CHANGED, COMMENTED, MENTIONED, REVIEW_SUBMITTED, REVIEW_RESULT
+  reqId     Int?     @map("req_id")
   content   String
-  isRead    Boolean    @default(false) @map("is_read")
-  createdAt DateTime   @default(now()) @map("created_at")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
 }
 
 /// 工作流定义 — 支持多工作流，每个工作流独立的状态和流转配置
@@ -408,7 +409,7 @@ model WorkflowStatus {
   sortOrder  Int                @default(0) @map("sort_order")
   isStart    Boolean            @default(false) @map("is_start")
   isEnd      Boolean            @default(false) @map("is_end")
-  color      String?            /// 状态颜色
+  color      String? /// 状态颜色
 
   @@index([workflowId])
 }
@@ -429,19 +430,19 @@ model WorkflowTransition {
 // ===================== AI Agent Models (Phase 8) =====================
 
 model KnowledgeBase {
-  id            Int                 @id @default(autoincrement())
-  name          String              @unique
-  displayName   String              @map("display_name")
-  description      String?
-  routingExamples  Json?               @map("routing_examples")
-  basePath         String              @map("base_path")
-  sourceType    String              @map("source_type") @default("directory") // directory | upload
-  docType       String?             @map("doc_type")
-  enabled       Boolean             @default(true)
-  lastSyncedAt  DateTime?           @map("last_synced_at")
-  createdAt     DateTime            @default(now()) @map("created_at")
-  updatedAt     DateTime            @updatedAt @map("updated_at")
-  documents     KnowledgeDocument[]
+  id              Int                 @id @default(autoincrement())
+  name            String              @unique
+  displayName     String              @map("display_name")
+  description     String?
+  routingExamples Json?               @map("routing_examples")
+  basePath        String              @map("base_path")
+  sourceType      String              @default("directory") @map("source_type") // directory | upload
+  docType         String?             @map("doc_type")
+  enabled         Boolean             @default(true)
+  lastSyncedAt    DateTime?           @map("last_synced_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  documents       KnowledgeDocument[]
 }
 
 model KnowledgeDocument {
@@ -462,72 +463,76 @@ model KnowledgeDocument {
 }
 
 model KnowledgeChunk {
-  id            Int               @id @default(autoincrement())
-  documentId    Int               @map("document_id")
-  document      KnowledgeDocument @relation(fields: [documentId], references: [id])
-  chunkIndex    Int               @map("chunk_index")
+  id            Int                          @id @default(autoincrement())
+  documentId    Int                          @map("document_id")
+  document      KnowledgeDocument            @relation(fields: [documentId], references: [id])
+  chunkIndex    Int                          @map("chunk_index")
   content       String
-  contentTokens Int?              @map("content_tokens")
+  contentTokens Int?                         @map("content_tokens")
   embedding     Unsupported("vector(1024)")?
   metadata      Json?
-  createdAt     DateTime          @default(now()) @map("created_at")
+  createdAt     DateTime                     @default(now()) @map("created_at")
+
   @@index([documentId])
 }
 
 model Conversation {
-  id            Int                   @id @default(autoincrement())
-  title         String?
-  userId        Int                   @map("user_id")
-  contextType   String                @default("chat") @map("context_type")
-  contextId     Int?                  @map("context_id")
-  contextModel  String?               @map("context_model")
-  messageCount  Int                   @default(0) @map("message_count")
-  totalTokens   Int                   @default(0) @map("total_tokens")
-  isArchived    Boolean               @default(false) @map("is_archived")
-  createdAt     DateTime              @default(now()) @map("created_at")
-  updatedAt     DateTime              @updatedAt @map("updated_at")
-  messages      ConversationMessage[]
+  id           Int                   @id @default(autoincrement())
+  title        String?
+  userId       Int                   @map("user_id")
+  contextType  String                @default("chat") @map("context_type")
+  contextId    Int?                  @map("context_id")
+  contextModel String?               @map("context_model")
+  messageCount Int                   @default(0) @map("message_count")
+  totalTokens  Int                   @default(0) @map("total_tokens")
+  isArchived   Boolean               @default(false) @map("is_archived")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+  messages     ConversationMessage[]
 }
 
 model ConversationMessage {
-  id              Int          @id @default(autoincrement())
-  conversationId  Int          @map("conversation_id")
-  conversation    Conversation @relation(fields: [conversationId], references: [id])
-  role            String
-  content         String
-  tokens          Int?
-  metadata        Json?
-  createdAt       DateTime     @default(now()) @map("created_at")
+  id             Int          @id @default(autoincrement())
+  conversationId Int          @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  role           String
+  content        String
+  tokens         Int?
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
   @@index([conversationId, createdAt])
 }
 
 model AnalysisCache {
-  id            Int          @id @default(autoincrement())
-  reqId         Int?         @map("req_id")
-  req           Requirement? @relation(fields: [reqId], references: [id])
-  analysisType  String       @map("analysis_type")
-  inputHash     String       @map("input_hash")
-  result        Json
-  model         String       @default("claude-sonnet-4-20250514")
-  tokensUsed    Int?         @map("tokens_used")
-  latencyMs     Int?         @map("latency_ms")
-  createdAt     DateTime     @default(now()) @map("created_at")
-  expiresAt     DateTime?    @map("expires_at")
+  id           Int          @id @default(autoincrement())
+  reqId        Int?         @map("req_id")
+  req          Requirement? @relation(fields: [reqId], references: [id])
+  analysisType String       @map("analysis_type")
+  inputHash    String       @map("input_hash")
+  result       Json
+  model        String       @default("claude-sonnet-4-20250514")
+  tokensUsed   Int?         @map("tokens_used")
+  latencyMs    Int?         @map("latency_ms")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  expiresAt    DateTime?    @map("expires_at")
+
   @@index([reqId, analysisType])
   @@index([inputHash])
 }
 
 model AgentTask {
-  id            Int       @id @default(autoincrement())
-  taskType      String    @map("task_type")
-  status        String    @default("pending")
-  params        Json?
-  result        Json?
-  errorMessage  String?   @map("error_message")
-  startedAt     DateTime? @map("started_at")
-  completedAt   DateTime? @map("completed_at")
-  createdBy     Int       @map("created_by")
-  createdAt     DateTime  @default(now()) @map("created_at")
+  id           Int       @id @default(autoincrement())
+  taskType     String    @map("task_type")
+  status       String    @default("pending")
+  params       Json?
+  result       Json?
+  errorMessage String?   @map("error_message")
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  createdBy    Int       @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
   @@index([status])
   @@index([taskType, status])
 }
@@ -536,7 +541,7 @@ model RequirementView {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
   name      String
-  filters   Json     // { reqType?, priority?, status?, assignee?, module?, search? }
+  filters   Json // { reqType?, priority?, status?, assignee?, module?, search? }
   sortBy    String?  @default("updatedAt") @map("sort_by")
   sortOrder String?  @default("desc") @map("sort_order")
   isDefault Boolean  @default(false) @map("is_default")
@@ -548,15 +553,16 @@ model RequirementView {
 }
 
 model ReqAgentInsight {
-  id              Int         @id @default(autoincrement())
-  reqId           Int         @map("req_id")
-  req             Requirement @relation(fields: [reqId], references: [id])
-  insightType     String      @map("insight_type")
-  content         String?
-  structuredData  Json?       @map("structured_data")
-  model           String      @map("model")
-  tokensUsed      Int?        @map("tokens_used")
-  createdAt       DateTime    @default(now()) @map("created_at")
+  id             Int         @id @default(autoincrement())
+  reqId          Int         @map("req_id")
+  req            Requirement @relation(fields: [reqId], references: [id])
+  insightType    String      @map("insight_type")
+  content        String?
+  structuredData Json?       @map("structured_data")
+  model          String      @map("model")
+  tokensUsed     Int?        @map("tokens_used")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
   @@index([reqId, insightType])
 }
 
@@ -566,7 +572,7 @@ model TeamLearning {
   id         Int      @id @default(autoincrement())
   title      String
   content    String?
-  category   String   // 最佳实践 / 踩坑记录 / 团队偏好 / 架构决策
+  category   String // 最佳实践 / 踩坑记录 / 团队偏好 / 架构决策
   tags       Json?
   author     String
   confidence Int      @default(7) // 1-10
@@ -580,31 +586,35 @@ model TeamLearning {
 
 // ================= AI Skills =================
 
-/** AI Skill 定义 — 用户可自定义的系统提示词 */
+/**
+ * AI Skill 定义 — 用户可自定义的系统提示词
+ */
 model AiSkill {
-  id            Int      @id @default(autoincrement())
-  name          String   @unique           // 技能唯一标识符（如 wm-architect）
-  displayName   String   @map("display_name")  // 显示名称（如 WMOS 架构师）
-  description   String?                      // 技能描述
-  systemPrompt  String   @map("system_prompt") // 系统提示词模板（支持 {{变量}} 和 {{context}} 占位符）
-  category      String   @default("general")  // 分类：design / analysis / chat / rag / custom
-  enabled       Boolean  @default(true)
-  sortOrder     Int      @default(0) @map("sort_order")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           Int      @id @default(autoincrement())
+  name         String   @unique // 技能唯一标识符（如 wm-architect）
+  displayName  String   @map("display_name") // 显示名称（如 WMOS 架构师）
+  description  String? // 技能描述
+  systemPrompt String   @map("system_prompt") // 系统提示词模板（支持 {{变量}} 和 {{context}} 占位符）
+  category     String   @default("general") // 分类：design / analysis / chat / rag / custom
+  enabled      Boolean  @default(true)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  assignments   SkillAssignment[]
+  assignments SkillAssignment[]
 }
 
-/** AI 调用映射 — 哪个任务调用哪个 Skill */
+/**
+ * AI 调用映射 — 哪个任务调用哪个 Skill
+ */
 model SkillAssignment {
-  id        Int        @id @default(autoincrement())
-  taskKey   String     @unique @map("task_key")   // 任务标识：generateDesign / analyzeRequirement / chat / ragSearch
-  skillId   Int        @map("skill_id")
-  skill     AiSkill    @relation(fields: [skillId], references: [id])
-  enabled   Boolean    @default(true)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  taskKey   String   @unique @map("task_key") // 任务标识：generateDesign / analyzeRequirement / chat / ragSearch
+  skillId   Int      @map("skill_id")
+  skill     AiSkill  @relation(fields: [skillId], references: [id])
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([skillId])
 }
@@ -615,15 +625,15 @@ model SkillAssignment {
 model OperationManual {
   id          Int      @id @default(autoincrement())
   title       String
-  content     String?                       /// Markdown 内容（article 类型）
-  type        String   @default("article")  /// article | document | link
-  category    String   @default("SOP")      /// SOP | FAQ | 操作指南 | 系统说明 | 其他
-  tags        Json?                         /// ["tag1", "tag2"]
+  content     String? /// Markdown 内容（article 类型）
+  type        String   @default("article") /// article | document | link
+  category    String   @default("SOP") /// SOP | FAQ | 操作指南 | 系统说明 | 其他
+  tags        Json? /// ["tag1", "tag2"]
   externalUrl String?  @map("external_url") /// link 类型专用
-  filePath    String?  @map("file_path")    /// document 类型专用（相对路径）
-  fileName    String?  @map("file_name")    /// 原始文件名
-  fileSize    Int?     @map("file_size")    /// 文件大小（字节）
-  mimeType    String?  @map("mime_type")    /// 文件 MIME 类型
+  filePath    String?  @map("file_path") /// document 类型专用（相对路径）
+  fileName    String?  @map("file_name") /// 原始文件名
+  fileSize    Int?     @map("file_size") /// 文件大小（字节）
+  mimeType    String?  @map("mime_type") /// 文件 MIME 类型
   sortOrder   Int      @default(0) @map("sort_order")
   createdBy   String   @map("created_by")
   updatedBy   String?  @map("updated_by")
@@ -652,10 +662,90 @@ model ManualCategory {
 /// 系统配置 — key-value 存储平台级参数（如模块枚举值）
 model SystemConfig {
   id          Int      @id @default(autoincrement())
-  configKey   String   @unique @map("config_key")  /// 配置键
-  configValue Json     @map("config_value")         /// 配置值（JSON）
-  description String?                               /// 配置说明
+  configKey   String   @unique @map("config_key") /// 配置键
+  configValue Json     @map("config_value") /// 配置值（JSON）
+  description String? /// 配置说明
   updatedBy   String?  @map("updated_by")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+// ================= Permission Management (2026-06-15) =================
+
+/// 资源注册表 — 菜单/页面/按钮的统一定义
+/// type: 'MENU' | 'PAGE' | 'BUTTON'
+model PermissionResource {
+  id          Int          @id @default(autoincrement())
+  code        String       @unique // e.g. 'page:requirements' | 'menu:team' | 'btn:requirement:create'
+  type        String // MENU | PAGE | BUTTON
+  parentCode  String?      @map("parent_code") // 上级资源 code（菜单树）
+  displayName String       @map("display_name")
+  path        String? // 前端路由路径
+  icon        String? // lucide 图标名
+  sortOrder   Int          @default(0) @map("sort_order")
+  enabled     Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  permissions Permission[]
+
+  @@index([type])
+  @@index([parentCode])
+}
+
+/// 权限点 — 资源 × 操作的组合
+/// code 格式：'{resourceCodeShort}:{action}'，如 'requirement:create'
+model Permission {
+  id           Int                   @id @default(autoincrement())
+  code         String                @unique
+  resourceCode String                @map("resource_code")
+  resource     PermissionResource    @relation(fields: [resourceCode], references: [code], onDelete: Cascade)
+  action       String // 'view' | 'create' | 'update' | 'delete' | 'export' | 'approve' | 'manage'
+  displayName  String                @map("display_name")
+  description  String?
+  createdAt    DateTime              @default(now()) @map("created_at")
+  groups       PermissionGroupItem[]
+
+  @@index([resourceCode])
+}
+
+/// 权限组 — 多个权限的集合，可绑定 Role / Group / User
+model PermissionGroup {
+  id            Int                   @id @default(autoincrement())
+  name          String                @unique // e.g. 'pg_viewer'
+  displayName   String                @map("display_name")
+  description   String?
+  bindRole      String?               @map("bind_role") // 关联 Role.name（ADMIN/GROUP_LEAD/MEMBER）
+  bindGroupName String?               @map("bind_group_name") // 关联 Group.groupName
+  enabled       Boolean               @default(true)
+  sortOrder     Int                   @default(0) @map("sort_order")
+  isSystem      Boolean               @default(false) @map("is_system") // 系统内置不可删
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  items         PermissionGroupItem[]
+  members       UserPermissionGroup[]
+
+  @@index([bindRole])
+  @@index([bindGroupName])
+}
+
+/// PG ↔ Permission 多对多
+model PermissionGroupItem {
+  permissionGroupId Int             @map("permission_group_id")
+  permissionGroup   PermissionGroup @relation(fields: [permissionGroupId], references: [id], onDelete: Cascade)
+  permissionId      Int             @map("permission_id")
+  permission        Permission      @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([permissionGroupId, permissionId])
+  @@index([permissionId])
+}
+
+/// User ↔ PG 多对多（显式用户级授权，补充 bindRole/bindGroupName 的不足）
+model UserPermissionGroup {
+  userId            Int             @map("user_id")
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionGroupId Int             @map("permission_group_id")
+  permissionGroup   PermissionGroup @relation(fields: [permissionGroupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionGroupId])
+  @@index([userId])
 }

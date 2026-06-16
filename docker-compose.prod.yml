@@ -1,0 +1,37 @@
+# 生产环境 PostgreSQL（pgvector）
+# 用法：
+#   cp docker-compose.prod.yml docker-compose.prod.local.yml
+#   # 编辑 POSTGRES_PASSWORD
+#   docker compose -f docker-compose.prod.local.yml up -d db
+#
+# 注意：不要将 5432 暴露到公网；仅本机或内网访问
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg15
+    container_name: req-platform-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: req_admin
+      POSTGRES_PASSWORD: CHANGE_ME_STRONG_PASSWORD
+      POSTGRES_DB: req_platform_db
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - req_platform_pgdata:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=vector
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U req_admin -d req_platform_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  req_platform_pgdata:

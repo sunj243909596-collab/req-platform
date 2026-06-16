@@ -267,3 +267,9 @@ See `server/prisma/schema.prisma` for the full schema and `server/prisma/schema.
 ## 9. License
 
 This project is licensed under the **MIT License** — see the [LICENSE](./LICENSE) file.
+
+---
+
+## 10. Production Deployment
+
+See [docs/DEPLOY.md](./docs/DEPLOY.md) for the full production deployment guide and [`scripts/deploy.sh`](./scripts/deploy.sh) for automation scripts.

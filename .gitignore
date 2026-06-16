@@ -16,7 +16,8 @@ dist/
 agent-config.json
 
 # ===== 业务数据与文档（不入库） =====
-docs/
+docs/*
+!docs/DEPLOY.md
 CODE_MAP.md
 server/uploads/
 

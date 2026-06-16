@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server/src/index.js",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio"
   },

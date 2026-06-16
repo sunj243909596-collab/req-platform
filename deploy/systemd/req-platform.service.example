@@ -1,0 +1,40 @@
+# WMS 需求管理平台 — systemd 单元模板
+#
+# 安装：
+#   sudo ./scripts/deploy.sh install-systemd
+#
+# 占位符：
+#   __APP_ROOT__  项目根目录绝对路径
+#   __USER__      运行用户
+
+[Unit]
+Description=WMS Requirement Platform API (Hono)
+After=network.target postgresql.service docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+WorkingDirectory=__APP_ROOT__/server
+EnvironmentFile=__APP_ROOT__/server/.env
+Environment=NODE_ENV=production
+
+ExecStart=/usr/bin/node dist/server/src/index.js
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# 安全加固（按需调整）
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=__APP_ROOT__/server/uploads __APP_ROOT__/server/.env
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=req-platform
+
+[Install]
+WantedBy=multi-user.target

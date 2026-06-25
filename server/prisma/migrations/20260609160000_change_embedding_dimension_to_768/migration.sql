@@ -5,7 +5,6 @@
 DROP INDEX IF EXISTS "KnowledgeChunk_embedding_hnsw_idx";
 
 ALTER TABLE "KnowledgeChunk" ALTER COLUMN embedding TYPE vector(768);
-ALTER TABLE "Requirement"  ALTER COLUMN embedding TYPE vector(768);
 
 CREATE INDEX "KnowledgeChunk_embedding_hnsw_idx"
   ON "KnowledgeChunk"

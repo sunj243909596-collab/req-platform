@@ -9,7 +9,6 @@ DROP INDEX IF EXISTS "KnowledgeChunk_embedding_hnsw_idx";
 
 -- 2) Resize both vector columns to 1024 dimensions
 ALTER TABLE "KnowledgeChunk" ALTER COLUMN embedding TYPE vector(1024);
-ALTER TABLE "Requirement"  ALTER COLUMN embedding TYPE vector(1024);
 
 -- 3) Recreate HNSW index with the same params as 20260607110000_add_hnsw_index
 CREATE INDEX "KnowledgeChunk_embedding_hnsw_idx"

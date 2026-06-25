@@ -148,11 +148,20 @@ pnpm prisma:seed             # Seed initial data
 psql "$DATABASE_URL" -f server/prisma/schema.sql
 ```
 
-`server/prisma/schema.sql` is auto-synced from `schema.prisma` and contains:
+`server/prisma/schema.sql` is **regenerated from `schema.prisma`** via `scripts/regenerate-schema-sql.sh` and contains:
 - 3 extensions: `vector`, `pg_trgm`, `uuid-ossp`
-- 43 tables, ordered by 5 FK dependency layers
-- 59 indexes (unique / composite / partial)
-- 47 `COMMENT ON` annotations
+- **48 tables** (= `schema.prisma` models count; PascalCase naming with quoted identifiers)
+- **53 indexes** (unique / composite; HNSW vector indexes added via separate migrations)
+- **43 FK constraints** (added via `ALTER TABLE ... ADD CONSTRAINT`)
+- **47 `COMMENT ON` annotations** (preserved from legacy schema for table/column docs)
+
+> ⚠️ **Two ways to initialize, both produce equivalent schemas:**
+> - Option A (`prisma migrate deploy`): runs the 17-migration chain in `server/prisma/migrations/`
+> - Option B (`psql -f schema.sql`): applies the consolidated DDL snapshot directly
+>
+> After initialization, both paths yield the same 48 business tables. The `WorkflowConfig` table from the initial migration is a deprecated legacy table (not in `schema.prisma`) and is kept for backward compatibility only.
+>
+> Check sync health: `bash scripts/check-schema-sync.sh`
 
 ### 4.6 Start Dev Servers
 
@@ -219,20 +228,23 @@ pnpm kb:sync                 # Sync local docs into RAG
 | `ANTHROPIC_API_KEY` | Claude API key (for Agent) | `sk-ant-...` |
 | `OPENAI_API_KEY` | OpenAI API key (for Agent, optional) | `sk-...` |
 
-Configure via `agent-config.json` or `.env` files — **both are gitignored**.
+Configure via `server/agent-config.json` (LLM provider/key/model) or `.env` files at the project root or under `server/` — **both are gitignored**. The Agent reads `server/agent-config.json` at startup; secrets in `.env` override values from the JSON file when both are present.
 
 ### 6.2 Data Model Overview
 
-| Model | Purpose |
-|---|---|
-| `User` | Platform user |
-| `Role` | Role definition (RBAC) |
-| `Requirement` | Requirement ticket (title / description / priority / status / assignee / module / tags) |
-| `Release` | Release plan (linked requirements) |
-| `KnowledgeChunk` | RAG chunk (pgvector embedding) |
-| `Notification` | In-app notification |
+The platform has **48 models** in `schema.prisma`, grouped into the following functional areas:
 
-See `server/prisma/schema.prisma` for the full schema and `server/prisma/schema.sql` for the PostgreSQL DDL.
+| Area | Models | Purpose |
+|---|---|---|
+| **Identity & Access** | `User`, `Role`, `Group`, `Permission`, `PermissionResource`, `PermissionGroup`, `PermissionGroupItem`, `UserPermissionGroup` | RBAC + fine-grained permission groups (5 tables for perm system, see v1.0.0 release) |
+| **Requirement Lifecycle** | `Requirement`, `SubTask`, `ReqRelation`, `RequirementType`, `RequirementCategory`, `RequirementNumberRule`, `RequirementSeqCounter`, `RequirementView`, `CustomField`, `ReqCustomValue`, `Attachment`, `Document`, `Comment`, `ActivityLog` | Core requirement ticket + workflow + custom fields |
+| **Release Management** | `Release`, `ReleaseReview`, `TestCase`, `TestRun`, `RegressionSuite`, `RegressionSuiteItem`, `RegressionRun`, `RegressionRunItem` | Release planning + SIT + regression tracking |
+| **Workflow** | `WorkflowDefinition`, `WorkflowStatus`, `WorkflowTransition` | Configurable state machines (3 split tables) |
+| **Knowledge Base + RAG** | `KnowledgeBase`, `KnowledgeDocument`, `KnowledgeChunk` | pgvector embeddings (1024-dim, HNSW index) |
+| **AI Agent** | `Conversation`, `ConversationMessage`, `AnalysisCache`, `AgentTask`, `ReqAgentInsight`, `TeamLearning`, `AiSkill`, `SkillAssignment` | Agent conversation history + RAG cache + skill registry |
+| **Operations** | `OperationManual`, `ManualCategory`, `SystemConfig`, `Notification` | User-facing manuals + system config + notifications |
+
+> 📚 **Full schema**: see `server/prisma/schema.prisma` (48 models). **Consolidated DDL snapshot**: see `server/prisma/schema.sql`. **Migration history**: see `server/prisma/migrations/` (17 migrations).
 
 ---
 

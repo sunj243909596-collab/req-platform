@@ -157,7 +157,7 @@ export function NotificationBell({ variant = 'dark' }: NotificationBellProps) {
                   }`}
                 >
                   <div className={`mt-0.5 p-1.5 rounded-full ${
-                    !n.isRead ? 'bg-[rgba(217,119,87,0.12)] text-[var(--clay)]' : 'text-[var(--ink-muted-48)]'
+                    !n.isRead ? 'bg-[rgba(37,99,235,0.08)] text-[var(--accent)]' : 'text-[var(--ink-muted-48)]'
                   }`}>
                     {TYPE_ICONS[n.type] || <Bell size={16} />}
                   </div>

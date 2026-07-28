@@ -32,12 +32,12 @@ const PRIORITY_COLORS: Record<string, string> = {
 const PIE_COLORS = ['#0066cc', '#28a745', '#ff9500', '#17a2b8', '#6c757d', '#fd7e14', '#ffc107', '#343a40'];
 
 const QUICK_ACTIONS = [
-  { name: '需求管理', href: '/app/requirements', icon: FileText, color: '#6a9bcc' },
-  { name: '发版计划', href: '/app/releases', icon: Rocket, color: '#788c5d' },
-  { name: 'AI 助手', href: '/app/ai', icon: Bot, color: '#d97757' },
-  { name: '操作手册', href: '/app/manuals', icon: BookOpen, color: '#8c7a3e' },
-  { name: '帮助中心', href: '/app/help', icon: BookText, color: '#87867f' },
-  { name: '团队管理', href: '/app/team', icon: Users, color: '#8b3a3a' },
+  { name: '需求管理', href: '/app/requirements', icon: FileText, color: '#2563eb' },
+  { name: '发版计划', href: '/app/releases', icon: Rocket, color: '#0891b2' },
+  { name: 'AI 助手', href: '/app/ai', icon: Bot, color: '#7c3aed' },
+  { name: '操作手册', href: '/app/manuals', icon: BookOpen, color: '#059669' },
+  { name: '帮助中心', href: '/app/help', icon: BookText, color: '#6b7280' },
+  { name: '团队管理', href: '/app/team', icon: Users, color: '#ea580c' },
 ];
 
 function formatDate(iso: string): string {

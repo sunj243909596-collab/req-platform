@@ -38,8 +38,8 @@ export function RegisterPage() {
   return (
     <div className="auth-layout">
       <AuthBrandPanel
-        title="开启智能需求管理之旅"
-        description="加入团队，体验更高效的需求管理方式"
+        title="团队协作，需求可追溯"
+        description="统一管理需求、发版与知识库，让交付过程更清晰"
       />
 
       <div className="auth-form-panel">

@@ -130,13 +130,13 @@ function SidebarContents({
       {/* Logo + toggle */}
       {collapsed ? (
         <div className="flex flex-col items-center gap-2 py-4 border-b border-[rgba(255,255,255,0.07)]">
-          <span className="text-[11px] font-black tracking-widest text-[var(--surface2)] uppercase select-none">需</span>
+          <span className="text-[13px] font-bold text-[var(--surface2)] select-none">需</span>
           {onToggle && (
             <button
               type="button"
               onClick={onToggle}
               title="展开菜单"
-              className="app-topbar-btn !text-[rgba(255,255,255,0.35)] hover:!text-[rgba(255,255,255,0.75)] p-1"
+              className="app-topbar-btn !text-[rgba(255,255,255,0.55)] hover:!text-white p-1"
             >
               <ChevronRight size={13} />
             </button>
@@ -153,7 +153,7 @@ function SidebarContents({
               type="button"
               onClick={onToggle}
               title="收起菜单"
-              className="app-topbar-btn !text-[rgba(255,255,255,0.35)] hover:!text-[rgba(255,255,255,0.75)] p-1 shrink-0 mt-0.5 -mr-1"
+              className="app-topbar-btn !text-[rgba(255,255,255,0.55)] hover:!text-white p-1 shrink-0 mt-0.5 -mr-1"
             >
               <ChevronLeft size={13} />
             </button>
@@ -240,7 +240,7 @@ export function DashboardLayout() {
   const currentNavItem = allNav.find((item) => isNavActive(location.pathname, item.href));
   const pageTitle = currentNavItem?.name ?? '工作台';
 
-  const sidebarWidth = collapsed ? 52 : 210;
+  const sidebarWidth = collapsed ? 52 : 220;
 
   return (
     <div className="app-layout flex h-screen overflow-hidden">

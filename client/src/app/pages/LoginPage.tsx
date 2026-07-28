@@ -67,14 +67,14 @@ export function LoginPage() {
   return (
     <div className="auth-layout">
       <AuthBrandPanel
-        title="让需求管理更智能、更高效"
-        description="智能 AI 助手分析需求 · 实时团队协作 · 完整发版管理流程"
+        title="需求管理更清晰、更可控"
+        description="AI 辅助分析 · 团队协作 · 发版流程一体化"
       />
 
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.35 }}
         className="auth-form-panel"
       >
         <div className="auth-form-card">
@@ -154,16 +154,14 @@ export function LoginPage() {
               </Link>
             </div>
 
-            <motion.button
+            <button
               type="submit"
               disabled={isLoading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
               className="w-full btn-primary justify-center py-2.5"
             >
               {isLoading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-[var(--surface2)] border-t-transparent rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   登录中...
                 </>
               ) : (
@@ -172,7 +170,7 @@ export function LoginPage() {
                   <ArrowRight size={16} />
                 </>
               )}
-            </motion.button>
+            </button>
           </form>
 
           <p className="mt-6 text-center text-[12px] text-[var(--mid)]">

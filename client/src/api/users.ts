@@ -84,3 +84,22 @@ export async function deleteRole(id: number): Promise<void> {
 export async function assignUserRole(userId: number, roleId: number): Promise<UserInfo> {
   return http.put(`/users/${userId}/role`, { roleId });
 }
+
+// ── v1.0.0 Self-Service Password Change ──
+
+export interface ChangeOwnPasswordInput {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ChangeOwnPasswordResp {
+  ok: true;
+  passwordChangedAt: string;
+  message: string;
+}
+
+/** POST /api/v1/me/password — 任何已登录用户；需校验旧密码 */
+export async function changeMyPassword(input: ChangeOwnPasswordInput): Promise<ChangeOwnPasswordResp> {
+  return http.post<ChangeOwnPasswordResp>('/me/password', input);
+}

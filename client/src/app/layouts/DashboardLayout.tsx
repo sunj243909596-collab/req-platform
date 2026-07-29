@@ -18,6 +18,7 @@ import {
   BookText,
   LayoutDashboard,
   Trash2,
+  KeyRound,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,6 +27,7 @@ import { permissionStore } from '../../stores/permission';
 import { usePermission } from '../hooks/usePermission';
 import type { UserInfo } from '../../api/auth';
 import { NotificationBell } from '../components/NotificationBell';
+import { ChangePasswordDialog } from '../components/ChangePasswordDialog';
 
 function roleLabel(role: string): string {
   switch (role) {
@@ -192,6 +194,7 @@ export function DashboardLayout() {
   const [user, setUser] = useState(authStore.currentUser);
   const [userLoading, setUserLoading] = useState(true);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const toggleCollapsed = () => {
@@ -365,6 +368,17 @@ export function DashboardLayout() {
                     <div className="border-t border-[var(--border)] py-1">
                       <button
                         type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setShowChangePassword(true);
+                        }}
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-[13px] text-[var(--ink-muted-80)] hover:text-[var(--ink)] hover:bg-[var(--surface2)] transition-colors"
+                      >
+                        <KeyRound size={14} />
+                        修改密码
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => authStore.logout()}
                         className="flex items-center gap-2.5 w-full px-4 py-2.5 text-[13px] text-[var(--red)] hover:bg-[rgba(139,58,58,0.06)] transition-colors"
                       >
@@ -391,6 +405,11 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      <ChangePasswordDialog
+        open={showChangePassword}
+        onOpenChange={setShowChangePassword}
+      />
     </div>
   );
 }

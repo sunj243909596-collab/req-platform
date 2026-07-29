@@ -5,7 +5,7 @@ import { serve } from "@hono/node-server";
 import bcrypt from "bcryptjs";
 import { prisma } from "./lib/prisma";
 import { authMiddleware, generateToken, requireRole } from "./middleware/auth";
-import { loginRateLimit, aiRateLimit, generalRateLimit } from "./middleware/rate-limit";
+import { loginRateLimit, aiRateLimit, generalRateLimit, changePasswordLimiter } from "./middleware/rate-limit";
 import { createAgentRoutes } from "./routes/agent.routes";
 import { createKnowledgeRoutes } from "./routes/knowledge.routes";
 import { createGroupRoutes } from "./routes/groups.routes";
@@ -14,6 +14,7 @@ import { createReleaseRoutes } from "./routes/releases.routes";
 import { createCollaborationRoutes } from "./routes/collaboration.routes";
 import { createNotificationRoutes } from "./routes/notification.routes";
 import { createUserRoutes } from "./routes/users.routes";
+import { createMeRoutes } from "./routes/me.routes";
 import { createTeamLearningRoutes } from "./routes/team-learnings.routes";
 import { createSkillRoutes } from "./routes/skill.routes";
 import { createManualRoutes } from "./routes/manual.routes";
@@ -79,6 +80,7 @@ app.post("/api/v1/auth/login", loginRateLimit, async (c) => {
     username: user.username,
     role: user.role,
     groupName: user.groupName,
+    tokenVersion: user.tokenVersion ?? 0,
   });
 
   return c.json({
@@ -99,6 +101,7 @@ api.use("*", authMiddleware);
 api.use("*", generalRateLimit);
 api.use("/agent/chat*", aiRateLimit);
 api.use("/agent/req*", aiRateLimit);
+api.use("/me/password", changePasswordLimiter);   // v1.0.0 用户自助改密限流（3/分钟）
 
 api.route("/agent", createAgentRoutes(prismaStore));
 api.route("/knowledge", createKnowledgeRoutes(prismaStore));
@@ -136,6 +139,9 @@ api.get("/users/me/permissions", async (c) => {
     isAdmin: !!isAdmin,
   });
 });
+
+// === v1.0.0 用户自助改密路由（POST /api/v1/me/password）===
+api.route("/me", createMeRoutes());
 
 // Admin 强制清权限缓存（改完 PG 后调，让所有在线用户下次请求重新解析）
 api.post("/admin/invalidate-permission-cache", requireRole("ADMIN"), async (c) => {

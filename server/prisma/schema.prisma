@@ -22,8 +22,26 @@ model User {
   isActive         Boolean               @default(true)
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
+
+  // === v1.0.0 密码安全字段 ===
+  // tokenVersion: 改密即 +1，旧 JWT 因版本不匹配被 authMiddleware 立即失效
+  // passwordChangedAt: 最近成功改密时间，配合定期改密策略（v1.2）
+  // lastPasswordChangeActor: 操作者 username；ADMIN 代改统一前缀 admin:<username>
+  tokenVersion            Int       @default(0)        @map("token_version")
+  passwordChangedAt       DateTime? @map("password_changed_at")
+  lastPasswordChangeActor String?   @map("last_pwd_change_actor")
+
+  // === v1.1 预留字段（本期落字段，路由层暂不消费）===
+  // mustChangePassword: ADMIN 重置后置 true，下次登录强制改密（v1.1 拦截器消费）
+  // failedLoginAttempts: 登录失败累计（v1.1 锁定逻辑消费）
+  // lockUntil: 失败 5 次后锁 15 分钟（v1.1 消费）
+  mustChangePassword      Boolean   @default(false)    @map("must_change_password")
+  failedLoginAttempts     Int       @default(0)        @map("failed_login_attempts")
+  lockUntil               DateTime? @map("lock_until")
+
   notifications    Notification[]
   permissionGroups UserPermissionGroup[]
+  passwordAudits   PasswordAuditLog[]
 }
 
 /// 角色定义 — 可自定义的角色，ADMIN 为系统内置不可删除
@@ -748,4 +766,23 @@ model UserPermissionGroup {
 
   @@id([userId, permissionGroupId])
   @@index([userId])
+}
+
+/// 密码相关审计日志（独立于 ActivityLog，避免受 reqId 必填约束）
+/// eventType 取值：
+///   USER_CHANGE_PASSWORD     — 用户自助改密成功
+///   ADMIN_RESET_PASSWORD     — ADMIN 代用户重置密码
+///   PASSWORD_CHANGE_REJECTED — 改密尝试被拒（含 reason: OLD_MISMATCH / WEAK / SAME_AS_OLD / RATE_LIMIT）
+model PasswordAuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType String   @map("event_type")
+  actor     String   // 操作者：自助 = username；ADMIN 代改 = admin:<username>
+  payload   Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
 }

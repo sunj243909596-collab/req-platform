@@ -45,6 +45,12 @@ CREATE TABLE "User" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "token_version" INTEGER NOT NULL DEFAULT 0,
+    "password_changed_at" TIMESTAMP(3),
+    "last_pwd_change_actor" TEXT,
+    "must_change_password" BOOLEAN NOT NULL DEFAULT false,
+    "failed_login_attempts" INTEGER NOT NULL DEFAULT 0,
+    "lock_until" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -1062,6 +1068,38 @@ COMMENT ON TABLE "TestRun" IS '测试用例执行记录';
 COMMENT ON TABLE "RegressionSuiteItem" IS '回归套件包含的测试用例';
 COMMENT ON TABLE "RegressionRun" IS '回归测试运行批次';
 COMMENT ON TABLE "RegressionRunItem" IS '回归运行单条用例结果';
+
+-- CreateTable: 密码审计日志（独立于 ActivityLog，避免受 reqId 必填约束）
+CREATE TABLE "PasswordAuditLog" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "event_type" TEXT NOT NULL,
+    "actor" TEXT NOT NULL,
+    "payload" JSONB,
+    "ip" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PasswordAuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "PasswordAuditLog_user_id_created_at_idx" ON "PasswordAuditLog"("user_id", "created_at");
+CREATE INDEX "PasswordAuditLog_event_type_created_at_idx" ON "PasswordAuditLog"("event_type", "created_at");
+
+-- AddForeignKey
+ALTER TABLE "PasswordAuditLog" ADD CONSTRAINT "PasswordAuditLog_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Comments
+COMMENT ON COLUMN "User"."token_version"           IS '令牌版本号，每次改密 +1，旧 JWT 立即失效';
+COMMENT ON COLUMN "User"."password_changed_at"     IS '密码最近修改时间';
+COMMENT ON COLUMN "User"."last_pwd_change_actor"   IS '最近一次改密的操作者 username（含 ADMIN 代改前缀 admin:<name>）';
+COMMENT ON COLUMN "User"."must_change_password"    IS '下次登录强制改密（v1.1 路由拦截消费）';
+COMMENT ON COLUMN "User"."failed_login_attempts"   IS '登录失败累计次数（v1.1 锁定逻辑消费）';
+COMMENT ON COLUMN "User"."lock_until"              IS '账户锁定到期时间（v1.1 消费）';
+COMMENT ON TABLE "PasswordAuditLog"                IS '密码相关审计日志（USER_CHANGE_PASSWORD / ADMIN_RESET_PASSWORD / PASSWORD_CHANGE_REJECTED）';
+COMMENT ON COLUMN "PasswordAuditLog"."event_type" IS '事件类型';
+COMMENT ON COLUMN "PasswordAuditLog"."actor"       IS '操作者：自助=username；ADMIN 代改=admin:<username>';
+COMMENT ON COLUMN "PasswordAuditLog"."payload"     IS '补充信息（如 source / targetUserId / reason: OLD_MISMATCH|WEAK|SAME_AS_OLD|RATE_LIMIT）';
 
 -- =============================================================================
 -- End of schema.sql

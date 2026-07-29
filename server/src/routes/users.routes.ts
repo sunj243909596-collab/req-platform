@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { requireRole } from "../middleware/auth";
 import * as userService from "../services/user.service";
 import { prisma } from "../lib/prisma";
+import { UserError } from "../services/user-error";
+import { getClientIp } from "../utils/password-audit-log";
 
 
 export function createUserRoutes() {
@@ -93,6 +95,38 @@ export function createUserRoutes() {
       return c.json({ ok: true });
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
+    }
+  });
+
+  // Admin-only: 重置任意用户密码（无需原密码；目标下次登录强制改密）
+  app.put("/:id/password", requireRole("ADMIN"), async (c) => {
+    const id = parseInt(c.req.param("id"));
+    const body = (await c.req.json().catch(() => ({}))) as { newPassword?: string };
+    if (!body.newPassword) {
+      return c.json(
+        { error: "新密码不能为空", errorCode: "MISSING_FIELD", field: "newPassword" },
+        400,
+      );
+    }
+    try {
+      await userService.resetPasswordByAdmin({
+        targetUserId: id,
+        adminUsername: c.get("username") as string,
+        newPassword: body.newPassword,
+        ip: getClientIp(c),
+      });
+      return c.json({
+        ok: true,
+        message: "已重置，目标用户下次登录需要修改密码",
+      });
+    } catch (err) {
+      if (err instanceof UserError) {
+        return c.json(
+          { error: err.message, errorCode: err.code, field: err.field },
+          err.http as 400 | 403 | 404,
+        );
+      }
+      return c.json({ error: (err as Error).message, errorCode: "INTERNAL" }, 500);
     }
   });
 

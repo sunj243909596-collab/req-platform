@@ -72,3 +72,11 @@ export const generalRateLimit = createRateLimiter({
   max: 100,
   message: "请求过于频繁，请稍后再试",
 });
+
+/** 改密接口：3次/分钟/用户（既防爆破，也保护审计日志写入） */
+export const changePasswordLimiter = createRateLimiter({
+  windowMs: 60_000,
+  max: 3,
+  message: "改密尝试过于频繁，请 1 分钟后再试",
+  keyFn: (c) => `pwd:user:${c.get("userId") ?? c.req.header("x-forwarded-for") ?? "unknown"}`,
+});
